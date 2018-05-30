@@ -1,0 +1,126 @@
+---
+
+### Install required packages
+
+- hosts:
+    - CND-VOL
+    - CND-BCK
+    - NOV-API
+    - GLA-API
+    - NOV-CMP
+  sudo: yes
+  vars_files:
+    - vars.yml
+  tasks:
+
+    - name: Install ceph-common - Debian
+      apt: name=ceph-common state=latest force=yes
+      when: ansible_os_family == 'Debian'
+
+    - name: Install ceph-common - RedHat
+      yum: name=ceph-common state=latest
+      when: ansible_os_family == 'RedHat'
+
+    - name: Copy ceph configuration file
+      template: src=ceph.conf.j2 dest=/etc/ceph/ceph.conf
+
+- hosts: GLA-API
+  sudo: yes
+  tasks:
+
+    - name: Install python-rbd - Debian
+      apt: name=python-rbd state=latest force=yes
+      when: ansible_os_family == 'Debian'
+
+    - name: Install python-rbd - RedHat
+      yum: name=python-rbd state=latest
+      when: ansible_os_family == 'RedHat'
+
+- hosts: NOV-CMP
+  sudo: yes
+  tasks:
+
+    - name: Install ceph backend for libvirt
+      apt: name=qemu-block-extra state=present
+      when: ansible_os_family == 'Debian'
+
+
+### Copy required keyrings
+
+- hosts:
+    - CND-VOL
+    - NOV-API
+  sudo: yes
+  vars_files:
+    - vars.yml
+  tasks:
+
+    - name: Copy cinder keyring file
+      template: src=ceph.keyring.j2 dest=/etc/ceph/ceph.{{ item }}.keyring owner=cinder group=cinder mode=0640
+      with_items:
+        - client.cinder
+
+- hosts:
+    - CND-BCK
+  sudo: yes
+  vars_files:
+    - vars.yml
+  tasks:
+
+    - name: Copy cinder-backup keyring file
+      template: src=ceph.keyring.j2 dest=/etc/ceph/ceph.{{ item }}.keyring owner=cinder group=cinder mode=0640
+      with_items:
+        - client.cinder-backup
+
+- hosts: NOV-CMP
+  sudo: yes
+  vars_files:
+    - vars.yml
+  tasks:
+
+    - name: Copy cinder keyring file to compute nodes
+      template: src=ceph.keyring.j2 dest=/etc/ceph/ceph.{{ item }}.keyring owner=nova group=nova mode=0644 # FIXME: check permissions
+      with_items:
+        - client.cinder
+
+- hosts: GLA-API
+  sudo: yes
+  vars_files:
+    - vars.yml
+  tasks:
+
+    - name: Copy glance keyring file
+      template: src=ceph.keyring.j2 dest=/etc/ceph/ceph.{{ item }}.keyring owner=glance group=glance mode=0640
+      with_items:
+        - client.glance
+
+
+### Configure libvirt
+
+- hosts: NOV-CMP
+  sudo: yes
+  vars_files:
+    - vars.yml
+  tasks:
+
+    - name: Create temporary secret.xml for cinder keyring 
+      template: src=secret.xml.j2 dest=/tmp/secret.xml
+
+    - name: Define libvirt secret for cinder keyring 
+      shell: virsh secret-define --file /tmp/secret.xml
+
+    - name: Set libvirt secret value for cinder keyring 
+      shell: virsh secret-set-value --secret '{{ libvirt_secret_uuid }}' --base64 '{{ keyring["client.cinder"] }}' 
+
+
+
+### Configure nova-compute
+
+- hosts: NOV-CMP
+  sudo: yes
+  vars_files:
+    - vars.yml
+  tasks:
+
+    - name: Install ceph backend for libvirt
+      apt: name=qemu-block-extra state=present

@@ -1,0 +1,9 @@
+---
+
+keyring:
+  client.cinder: AQB21QtbHwznAxAAz7tS3m6SHzGWppCBpYgjGg==
+  client.glance: AQCQ1Qtb2OW0DhAAQSztXBeWfwdx/qXOvdO5bA==
+  client.cinder-backup: AQCg1Qtb16TzKRAAM76vnJIjWSl5hbFfi+oqpw==
+
+libvirt_secret_uuid: 457eb676-33da-42ec-9a8c-9293d545c337
+

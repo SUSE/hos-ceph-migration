@@ -1,0 +1,35 @@
+[global]
+fsid = 9dc04a7d-1696-3da9-b1d7-b5f5e98aa748
+mon_initial_members = ses1, ses3, ses2
+mon_host = 172.16.110.11, 172.16.110.13, 172.16.110.12
+auth_cluster_required = cephx
+auth_service_required = cephx
+auth_client_required = cephx
+filestore_xattr_use_omap = true
+public_network = 172.16.110.0/24
+cluster_network = 172.16.110.0/24
+mon_health_preluminous_compat = true
+mon health preluminous compat warning = false
+rbd default features = 3
+[client.rgw.ses1]
+rgw frontends = "civetweb port=80"
+rgw dns name = ses1
+rgw enable usage log = true
+[client.rgw.ses3]
+rgw frontends = "civetweb port=80"
+rgw dns name = ses3
+rgw enable usage log = true
+[client.rgw.ses2]
+rgw frontends = "civetweb port=80"
+rgw dns name = ses2
+rgw enable usage log = true
+[client.rgw.ses4]
+rgw frontends = "civetweb port=80"
+rgw dns name = ses4
+rgw enable usage log = true
+[osd]
+[mon]
+[mgr]
+[mds]
+[client]
+

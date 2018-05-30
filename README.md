@@ -109,7 +109,11 @@ rbd_secret_uuid = 457eb676-33da-42ec-9a8c-9293d545c337
 Make sure to replace `457eb676-33da-42ec-9a8c-9293d545c337` in
 `rbd_secret_uuid` with the value used for `libvirt_secret_uuid` in `vars.yml`
 and that the new backend is listed in `enabled_backends` in the
-`DEFAULTS` section.
+`DEFAULTS` section, for example:
+
+```ini
+enabled_backends=vsa-1,ses
+```
 
 #### Nova
 

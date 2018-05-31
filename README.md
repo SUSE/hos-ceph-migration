@@ -1,5 +1,21 @@
 # Migrating HOS 5 block storage to SES
 
+- [Migrating HOS 5 block storage to SES](#migrating-hos-5-block-storage-to-ses)
+  - [Assumptions](#assumptions)
+  - [Steps](#steps)
+    - [Enable ceph backward compatibility to hammer](#enable-ceph-backward-compatibility-to-hammer)
+    - [Create required pools](#create-required-pools)
+    - [Create keyrings](#create-keyrings)
+    - [Deploy cinder client packages](#deploy-cinder-client-packages)
+    - [Modify cinder and nova configuration templates](#modify-cinder-and-nova-configuration-templates)
+      - [Cinder](#cinder)
+      - [Nova](#nova)
+    - [Apply the changes to the services](#apply-the-changes-to-the-services)
+    - [Create a volume-type for the SES backend](#create-a-volume-type-for-the-ses-backend)
+    - [Migrate existing volumes](#migrate-existing-volumes)
+    - [Migrate cinder-backed instances](#migrate-cinder-backed-instances)
+    - [Using the migration planning script](#using-the-migration-planning-script)
+      - [Example](#example)
 
 ## Assumptions
 

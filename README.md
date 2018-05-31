@@ -221,27 +221,27 @@ stack@hos5to8-cp1-c1-m1-mgmt:~$ openstack volume list --all-projects --long
 +--------------------------------------+--------------+-----------+------+--------+----------+------------------------------+--------------------------------------+
 | ID                                   | Display Name | Status    | Size | Type   | Bootable | Attached to                  | Properties                           |
 +--------------------------------------+--------------+-----------+------+--------+----------+------------------------------+--------------------------------------+
-| d85dc05f-a8eb-4e0c-a15e-5efbcf4b8827 | unused       | available |    2 | VSA-r5 | false    |                              |                                      |
-| 0968ccea-8519-4334-a014-0b4fd33a736a | vm2-disk1    | in-use    |    2 | VSA-r1 | false    | Attached to vm2 on /dev/vdb  | attached_mode='rw', readonly='False' |
-| fc056037-5a71-4661-aefd-fa8bbe507d6e | vm1-disk3    | in-use    |    1 | VSA-r5 | false    | Attached to vm1 on /dev/vdd  | attached_mode='rw', readonly='False' |
-| c490cf6e-dd4e-4603-9bf2-32bd72fd1745 | vm1-disk2    | in-use    |    1 | ceph   | false    | Attached to vm1 on /dev/vdc  | attached_mode='rw', readonly='False' |
-| 161fc85e-dba4-40a4-a97d-74a9dd1a9411 | vm1-disk1    | in-use    |    1 | VSA-r5 | false    | Attached to vm1 on /dev/vdb  | attached_mode='rw', readonly='False' |
-| 1d888436-aa7a-4c36-ab41-b889e6f51216 | vm1-boot     | in-use    |    8 | VSA-r1 | true     | Attached to vm1 on /dev/vda  | attached_mode='rw', readonly='False' |
+| 1b199df7-3273-40eb-b705-8902e8cca727 | unused       | available |    2 | VSA-r1 | false    |                              |                                      |
+| 3fb9d86b-cea7-4508-ba44-6099e6c088e0 | vm2-disk1    | in-use    |    2 | VSA-r5 | false    | Attached to vm2 on /dev/vdb  | attached_mode='rw', readonly='False' |
+| a5de12db-7bef-469c-aac6-d1b2c109191e | vm1-disk3    | in-use    |    2 | VSA-r5 | false    | Attached to vm1 on /dev/vdd  | attached_mode='rw', readonly='False' |
+| 4986d4a8-e4ae-4691-b522-16cf34458d33 | vm1-disk2    | in-use    |    2 | ceph   | false    | Attached to vm1 on /dev/vdc  | attached_mode='rw', readonly='False' |
+| a554a4ed-4893-4f7c-b19d-e6feff7683b7 | vm1-disk1    | in-use    |    2 | VSA-r5 | false    | Attached to vm1 on /dev/vdb  | attached_mode='rw', readonly='False' |
+| 83b0dad4-fd8d-4847-a50c-3efc310384d9 | vm1-boot     | in-use    |    8 | VSA-r1 | true     | Attached to vm1 on /dev/vda  | attached_mode='rw', readonly='False' |
 +--------------------------------------+--------------+-----------+------+--------+----------+------------------------------+--------------------------------------+
 stack@hos5to8-cp1-c1-m1-mgmt:~$ openstack snapshot list --all-projects --long
 +--------------------------------------+-----------------+-------------+-----------+------+----------------------------+-----------+------------+
 | ID                                   | Name            | Description | Status    | Size | Created At                 | Volume    | Properties |
 +--------------------------------------+-----------------+-------------+-----------+------+----------------------------+-----------+------------+
-| 4cfe0ecb-b4b6-4547-bda2-f53eb3252151 | vm1-disk3-snap1 |             | available |    1 | 2018-05-31T11:45:39.000000 | vm1-disk3 |            |
+| 222cb290-3a2e-4f94-97ec-f18d814b9944 | vm1-disk3-snap1 | None        | available |    2 | 2018-05-31T15:28:13.000000 | vm1-disk3 |            |
 +--------------------------------------+-----------------+-------------+-----------+------+----------------------------+-----------+------------+
 stack@hos5to8-cp1-c1-m1-mgmt:~$ openstack server list --all-projects --long
-+--------------------------------------+------+--------+------------+-------------+-------------------------------+---------------------+--------------------------------------+-------------------+---------------------------+------------+
-| ID                                   | Name | Status | Task State | Power State | Networks                      | Image Name          | Image ID                             | Availability Zone | Host                      | Properties |
-+--------------------------------------+------+--------+------------+-------------+-------------------------------+---------------------+--------------------------------------+-------------------+---------------------------+------------+
-| e2535417-b025-46d2-b55c-09433b9415b6 | vm2  | ACTIVE | None       | Running     | lan=10.10.10.14, 172.16.122.4 | cirros-0.3.4-x86_64 | 033e6158-7813-4af8-9796-3f954b001303 | nova              | hos5to8-cp1-comp0001-mgmt |            |
-| 50afdf12-bed8-40c1-a4c2-5056e4b75b52 | vm1  | ACTIVE | None       | Running     | lan=10.10.10.9, 172.16.122.3  |                     |                                      | nova              | hos5to8-cp1-comp0001-mgmt |            |
-+--------------------------------------+------+--------+------------+-------------+-------------------------------+---------------------+--------------------------------------+-------------------+---------------------------+------------+
-stack@hos5to8-cp1-c1-m1-mgmt:~$
++--------------------------------------+------+--------+------------+-------------+------------------------------+---------------------+--------------------------------------+-------------------+---------------------------+------------+
+| ID                                   | Name | Status | Task State | Power State | Networks                     | Image Name          | Image ID                             | Availability Zone | Host                      | Properties |
++--------------------------------------+------+--------+------------+-------------+------------------------------+---------------------+--------------------------------------+-------------------+---------------------------+------------+
+| 1c9b3acb-58f5-4973-8f5d-b088c726fd6b | vm2  | ACTIVE | None       | Running     | lan=10.10.10.5, 172.16.122.4 | cirros-0.3.4-x86_64 | 033e6158-7813-4af8-9796-3f954b001303 | nova              | hos5to8-cp1-comp0001-mgmt |            |
+| baff0a89-995c-4fcf-88ee-d39206a36035 | vm1  | ACTIVE | None       | Running     | lan=10.10.10.8, 172.16.122.3 |                     |                                      | nova              | hos5to8-cp1-comp0001-mgmt |            |
++--------------------------------------+------+--------+------------+-------------+------------------------------+---------------------+--------------------------------------+-------------------+---------------------------+------------+
+stack@hos5to8-cp1-c1-m1-mgmt:~$ 
 ```
 
 We activate the openstackclient virtualenv and run the planner:
@@ -253,41 +253,42 @@ stack@hos5to8-cp1-c1-m1-mgmt:~$ . /opt/stack/service/openstackclient/venv/bin/ac
 #          VSA-r1 -> ceph
 #          VSA-r5 -> ceph
 # Migrating detached volumes
-cinder retype --migration-policy on-demand d85dc05f-a8eb-4e0c-a15e-5efbcf4b8827 ceph
-# Monitor migration process using: openstack volume show d85dc05f-a8eb-4e0c-a15e-5efbcf4b8827 | grep migration_status
-# WARNING: volume fc056037-5a71-4661-aefd-fa8bbe507d6e has snapshot(s): removing
-openstack snapshot delete 4cfe0ecb-b4b6-4547-bda2-f53eb3252151
+cinder retype --migration-policy on-demand 1b199df7-3273-40eb-b705-8902e8cca727 ceph
+# Monitor migration process using: openstack volume show 1b199df7-3273-40eb-b705-8902e8cca727 | grep migration_status
+# WARNING: volume a5de12db-7bef-469c-aac6-d1b2c109191e has snapshot(s): removing
+openstack snapshot delete 222cb290-3a2e-4f94-97ec-f18d814b9944
 # Migrating attached volumes
-# Migrating volumes attached to instance e2535417-b025-46d2-b55c-09433b9415b6 (vm2)
-# WARNING: instance e2535417-b025-46d2-b55c-09433b9415b6 is running: shutting down
-openstack server stop e2535417-b025-46d2-b55c-09433b9415b6
-openstack server remove volume e2535417-b025-46d2-b55c-09433b9415b6 0968ccea-8519-4334-a014-0b4fd33a736a
-cinder retype --migration-policy on-demand 0968ccea-8519-4334-a014-0b4fd33a736a ceph
-# Monitor migration process using: openstack volume show 0968ccea-8519-4334-a014-0b4fd33a736a | grep migration_status
-openstack server add volume e2535417-b025-46d2-b55c-09433b9415b6 0968ccea-8519-4334-a014-0b4fd33a736a
-openstack server start e2535417-b025-46d2-b55c-09433b9415b6
-# Migrating volumes attached to instance 50afdf12-bed8-40c1-a4c2-5056e4b75b52 (vm1)
-# WARNING: instance 50afdf12-bed8-40c1-a4c2-5056e4b75b52 is running: shutting down
-openstack server stop 50afdf12-bed8-40c1-a4c2-5056e4b75b52
-# WARNING: patching boot volume info for 50afdf12-bed8-40c1-a4c2-5056e4b75b52
-echo "update block_device_mapping set boot_index=999 where deleted=0 and instance_uuid='50afdf12-bed8-40c1-a4c2-5056e4b75b52' and boot_index=0" | sudo mysql nova
-openstack server remove volume 50afdf12-bed8-40c1-a4c2-5056e4b75b52 1d888436-aa7a-4c36-ab41-b889e6f51216
-openstack server remove volume 50afdf12-bed8-40c1-a4c2-5056e4b75b52 161fc85e-dba4-40a4-a97d-74a9dd1a9411
-openstack server remove volume 50afdf12-bed8-40c1-a4c2-5056e4b75b52 c490cf6e-dd4e-4603-9bf2-32bd72fd1745
-openstack server remove volume 50afdf12-bed8-40c1-a4c2-5056e4b75b52 fc056037-5a71-4661-aefd-fa8bbe507d6e
-cinder retype --migration-policy on-demand 1d888436-aa7a-4c36-ab41-b889e6f51216 ceph
-# Monitor migration process using: openstack volume show 1d888436-aa7a-4c36-ab41-b889e6f51216 | grep migration_status
-cinder retype --migration-policy on-demand 161fc85e-dba4-40a4-a97d-74a9dd1a9411 ceph
-# Monitor migration process using: openstack volume show 161fc85e-dba4-40a4-a97d-74a9dd1a9411 | grep migration_status
-cinder retype --migration-policy on-demand fc056037-5a71-4661-aefd-fa8bbe507d6e ceph
-# Monitor migration process using: openstack volume show fc056037-5a71-4661-aefd-fa8bbe507d6e | grep migration_status
-openstack server add volume 50afdf12-bed8-40c1-a4c2-5056e4b75b52 1d888436-aa7a-4c36-ab41-b889e6f51216
-openstack server add volume 50afdf12-bed8-40c1-a4c2-5056e4b75b52 161fc85e-dba4-40a4-a97d-74a9dd1a9411
-openstack server add volume 50afdf12-bed8-40c1-a4c2-5056e4b75b52 c490cf6e-dd4e-4603-9bf2-32bd72fd1745
-openstack server add volume 50afdf12-bed8-40c1-a4c2-5056e4b75b52 fc056037-5a71-4661-aefd-fa8bbe507d6e
-echo "update block_device_mapping set boot_index=0 where deleted=0 and instance_uuid='50afdf12-bed8-40c1-a4c2-5056e4b75b52' and boot_index is NULL" | sudo mysql nova
-openstack server start 50afdf12-bed8-40c1-a4c2-5056e4b75b52
-# Migration completed: 5 volumes, 14GB data, 2 instances
+# Migrating volumes attached to instance baff0a89-995c-4fcf-88ee-d39206a36035 (vm1)
+# WARNING: instance baff0a89-995c-4fcf-88ee-d39206a36035 is running: shutting down
+openstack server stop baff0a89-995c-4fcf-88ee-d39206a36035
+# WARNING: patching boot volume info for volume 83b0dad4-fd8d-4847-a50c-3efc310384d9
+echo "update block_device_mapping set boot_index=999 where deleted=0 and volume_id='83b0dad4-fd8d-4847-a50c-3efc310384d9' and boot_index=0" | sudo mysql nova
+openstack server remove volume baff0a89-995c-4fcf-88ee-d39206a36035 83b0dad4-fd8d-4847-a50c-3efc310384d9
+openstack server remove volume baff0a89-995c-4fcf-88ee-d39206a36035 a554a4ed-4893-4f7c-b19d-e6feff7683b7
+openstack server remove volume baff0a89-995c-4fcf-88ee-d39206a36035 4986d4a8-e4ae-4691-b522-16cf34458d33
+openstack server remove volume baff0a89-995c-4fcf-88ee-d39206a36035 a5de12db-7bef-469c-aac6-d1b2c109191e
+cinder retype --migration-policy on-demand 83b0dad4-fd8d-4847-a50c-3efc310384d9 ceph
+# Monitor migration process using: openstack volume show 83b0dad4-fd8d-4847-a50c-3efc310384d9 | grep migration_status
+cinder retype --migration-policy on-demand a554a4ed-4893-4f7c-b19d-e6feff7683b7 ceph
+# Monitor migration process using: openstack volume show a554a4ed-4893-4f7c-b19d-e6feff7683b7 | grep migration_status
+cinder retype --migration-policy on-demand a5de12db-7bef-469c-aac6-d1b2c109191e ceph
+# Monitor migration process using: openstack volume show a5de12db-7bef-469c-aac6-d1b2c109191e | grep migration_status
+openstack server add volume baff0a89-995c-4fcf-88ee-d39206a36035 83b0dad4-fd8d-4847-a50c-3efc310384d9
+openstack server add volume baff0a89-995c-4fcf-88ee-d39206a36035 a554a4ed-4893-4f7c-b19d-e6feff7683b7
+openstack server add volume baff0a89-995c-4fcf-88ee-d39206a36035 4986d4a8-e4ae-4691-b522-16cf34458d33
+openstack server add volume baff0a89-995c-4fcf-88ee-d39206a36035 a5de12db-7bef-469c-aac6-d1b2c109191e
+echo "update block_device_mapping set boot_index=0 where deleted=0 and volume_id='83b0dad4-fd8d-4847-a50c-3efc310384d9' and boot_index is NULL" | sudo mysql nova
+openstack server start baff0a89-995c-4fcf-88ee-d39206a36035
+# Migrating volumes attached to instance 1c9b3acb-58f5-4973-8f5d-b088c726fd6b (vm2)
+# WARNING: instance 1c9b3acb-58f5-4973-8f5d-b088c726fd6b is running: shutting down
+openstack server stop 1c9b3acb-58f5-4973-8f5d-b088c726fd6b
+openstack server remove volume 1c9b3acb-58f5-4973-8f5d-b088c726fd6b 3fb9d86b-cea7-4508-ba44-6099e6c088e0
+cinder retype --migration-policy on-demand 3fb9d86b-cea7-4508-ba44-6099e6c088e0 ceph
+# Monitor migration process using: openstack volume show 3fb9d86b-cea7-4508-ba44-6099e6c088e0 | grep migration_status
+openstack server add volume 1c9b3acb-58f5-4973-8f5d-b088c726fd6b 3fb9d86b-cea7-4508-ba44-6099e6c088e0
+openstack server start 1c9b3acb-58f5-4973-8f5d-b088c726fd6b
+# Migration completed: 5 volumes, 16GB data, 2 instances
+(openstackclient-20180403T122416Z) stack@hos5to8-cp1-c1-m1-mgmt:~$
 ```
 
 After following the plan, this is the state of the environment:
@@ -297,29 +298,29 @@ After following the plan, this is the state of the environment:
 +--------------------------------------+--------------+-----------+------+------+----------+------------------------------+--------------------------------------+
 | ID                                   | Display Name | Status    | Size | Type | Bootable | Attached to                  | Properties                           |
 +--------------------------------------+--------------+-----------+------+------+----------+------------------------------+--------------------------------------+
-| d85dc05f-a8eb-4e0c-a15e-5efbcf4b8827 | unused       | available |    2 | ceph | false    |                              |                                      |
-| 0968ccea-8519-4334-a014-0b4fd33a736a | vm2-disk1    | in-use    |    2 | ceph | false    | Attached to vm2 on /dev/vdb  | attached_mode='rw', readonly='False' |
-| fc056037-5a71-4661-aefd-fa8bbe507d6e | vm1-disk3    | in-use    |    1 | ceph | false    | Attached to vm1 on /dev/vde  | attached_mode='rw', readonly='False' |
-| c490cf6e-dd4e-4603-9bf2-32bd72fd1745 | vm1-disk2    | in-use    |    1 | ceph | false    | Attached to vm1 on /dev/vdd  | attached_mode='rw', readonly='False' |
-| 161fc85e-dba4-40a4-a97d-74a9dd1a9411 | vm1-disk1    | in-use    |    1 | ceph | false    | Attached to vm1 on /dev/vdc  | attached_mode='rw', readonly='False' |
-| 1d888436-aa7a-4c36-ab41-b889e6f51216 | vm1-boot     | in-use    |    8 | ceph | true     | Attached to vm1 on /dev/vdb  | attached_mode='rw', readonly='False' |
+| 1b199df7-3273-40eb-b705-8902e8cca727 | unused       | available |    2 | ceph | false    |                              |                                      |
+| 3fb9d86b-cea7-4508-ba44-6099e6c088e0 | vm2-disk1    | in-use    |    2 | ceph | false    | Attached to vm2 on /dev/vdb  | attached_mode='rw', readonly='False' |
+| a5de12db-7bef-469c-aac6-d1b2c109191e | vm1-disk3    | in-use    |    2 | ceph | false    | Attached to vm1 on /dev/vde  | attached_mode='rw', readonly='False' |
+| 4986d4a8-e4ae-4691-b522-16cf34458d33 | vm1-disk2    | in-use    |    2 | ceph | false    | Attached to vm1 on /dev/vdd  | attached_mode='rw', readonly='False' |
+| a554a4ed-4893-4f7c-b19d-e6feff7683b7 | vm1-disk1    | in-use    |    2 | ceph | false    | Attached to vm1 on /dev/vdc  | attached_mode='rw', readonly='False' |
+| 83b0dad4-fd8d-4847-a50c-3efc310384d9 | vm1-boot     | in-use    |    8 | ceph | true     | Attached to vm1 on /dev/vdb  | attached_mode='rw', readonly='False' |
 +--------------------------------------+--------------+-----------+------+------+----------+------------------------------+--------------------------------------+
 (openstackclient-20180403T122416Z) stack@hos5to8-cp1-c1-m1-mgmt:~$ openstack snapshot list --all-projects --long
 
 (openstackclient-20180403T122416Z) stack@hos5to8-cp1-c1-m1-mgmt:~$ openstack server list --all-projects --long
-+--------------------------------------+------+--------+------------+-------------+-------------------------------+---------------------+--------------------------------------+-------------------+---------------------------+------------+
-| ID                                   | Name | Status | Task State | Power State | Networks                      | Image Name          | Image ID                             | Availability Zone | Host                      | Properties |
-+--------------------------------------+------+--------+------------+-------------+-------------------------------+---------------------+--------------------------------------+-------------------+---------------------------+------------+
-| e2535417-b025-46d2-b55c-09433b9415b6 | vm2  | ACTIVE | None       | Running     | lan=10.10.10.14, 172.16.122.4 | cirros-0.3.4-x86_64 | 033e6158-7813-4af8-9796-3f954b001303 | nova              | hos5to8-cp1-comp0001-mgmt |            |
-| 50afdf12-bed8-40c1-a4c2-5056e4b75b52 | vm1  | ACTIVE | None       | Running     | lan=10.10.10.9, 172.16.122.3  |                     |                                      | nova              | hos5to8-cp1-comp0001-mgmt |            |
-+--------------------------------------+------+--------+------------+-------------+-------------------------------+---------------------+--------------------------------------+-------------------+---------------------------+------------+
++--------------------------------------+------+--------+------------+-------------+------------------------------+---------------------+--------------------------------------+-------------------+---------------------------+------------+
+| ID                                   | Name | Status | Task State | Power State | Networks                     | Image Name          | Image ID                             | Availability Zone | Host                      | Properties |
++--------------------------------------+------+--------+------------+-------------+------------------------------+---------------------+--------------------------------------+-------------------+---------------------------+------------+
+| 1c9b3acb-58f5-4973-8f5d-b088c726fd6b | vm2  | ACTIVE | None       | Running     | lan=10.10.10.5, 172.16.122.4 | cirros-0.3.4-x86_64 | 033e6158-7813-4af8-9796-3f954b001303 | nova              | hos5to8-cp1-comp0001-mgmt |            |
+| baff0a89-995c-4fcf-88ee-d39206a36035 | vm1  | ACTIVE | None       | Running     | lan=10.10.10.8, 172.16.122.3 |                     |                                      | nova              | hos5to8-cp1-comp0001-mgmt |            |
++--------------------------------------+------+--------+------------+-------------+------------------------------+---------------------+--------------------------------------+-------------------+---------------------------+------------+
 (openstackclient-20180403T122416Z) stack@hos5to8-cp1-c1-m1-mgmt:~$
 ```
 
 Running the script again, will confirm the migration was successful:
 
 ```
-(openstackclient-20180403T122416Z) stack@hos5to8-cp1-c1-m1-mgmt:~$ python ./migrate_volumes.py VSA-r1=ceph VSA-r5=ceph
+(openstackclient-20180403T122416Z) stack@hos5to8-cp1-c1-m1-mgmt:~$ python ~/hos-ceph-migration/migration_planner.py VSA-r1=ceph VSA-r5=ceph
 # Migration plan for the following volume types:
 #          VSA-r1 -> ceph
 #          VSA-r5 -> ceph
@@ -327,5 +328,4 @@ Running the script again, will confirm the migration was successful:
 # Migrating attached volumes
 # Migration completed: 0 volumes, 0GB data, 0 instances
 (openstackclient-20180403T122416Z) stack@hos5to8-cp1-c1-m1-mgmt:~$ 
-
 ```

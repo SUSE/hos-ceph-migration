@@ -85,7 +85,7 @@ sudo ceph --id cinder -s
 ```
 
 
-### Modify cinder and nova configuration teplates
+### Modify cinder and nova configuration templates
 
 #### Cinder
 

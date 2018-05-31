@@ -26,13 +26,13 @@ def retype_volume(volid, newtype):
     print("cinder retype --migration-policy on-demand %s %s" % (volid, newtype))
     info("Monitor migration process using: openstack volume show %s | grep migration_status" % volid)
 
-def patch_instance_boot_volume(srv, enable):
+def patch_volume_boot_index(vol, enable):
     if enable:
-        warn("patching boot volume info for %s" % srv)
-        query = "update block_device_mapping set boot_index=999 where deleted=0 and instance_uuid='%s' and boot_index=0"
+        warn("patching boot volume info for volume %s" % vol)
+        query = "update block_device_mapping set boot_index=999 where deleted=0 and volume_id='%s' and boot_index=0"
     else:
-        query = "update block_device_mapping set boot_index=0 where deleted=0 and instance_uuid='%s' and boot_index is NULL"
-    print("echo \""+(query % srv)+"\" | sudo mysql nova")
+        query = "update block_device_mapping set boot_index=0 where deleted=0 and volume_id='%s' and boot_index is NULL"
+    print("echo \""+(query % vol)+"\" | sudo mysql nova")
 
 def instance_power(srv, power):
     pcmd = 'start' if power else 'stop'
@@ -129,7 +129,7 @@ for srv in srvs_with_volumes:
     if workaround_required:
         # This instance boots from a volume hosted on a legacy volume type:
         # apply workaround
-        patch_instance_boot_volume(s.id, True)
+        patch_volume_boot_index(vols[0], True)
     for v in vols:
         detach_volume(srv, v)
     for v in vols:
@@ -142,7 +142,7 @@ for srv in srvs_with_volumes:
         attach_volume(srv, v)
     if workaround_required:
         # Undo workaround
-        patch_instance_boot_volume(s.id, False)
+        patch_volume_boot_index(vols[0], False)
     if srv_running:
         instance_power(srv, True)
 

@@ -84,7 +84,8 @@ info("Migration plan for the following volume types:")
 for f, t in sorted(voltype_map.items()):
     info("%s -> %s" % (f.rjust(15), t))
 
-snapshots = {x.id: x.volume_id for x in cinder.volume_snapshots.list()}
+snapshots = {x.id: x.volume_id
+    for x in cinder.volume_snapshots.list(search_opts=dict(all_tenants=1))}
 vols_with_snapshots = {
     x: set([k for k, v in snapshots.items() if v == x])
         for x in snapshots.values()
@@ -94,7 +95,7 @@ vol_count = vol_total_size = 0
 
 # First migrate all detached volumes
 info("Migrating detached volumes")
-for v in cinder.volumes.list():
+for v in cinder.volumes.list(search_opts=dict(all_tenants=1)):
     if v.volume_type in voltype_map:
         if v.id in vols_with_snapshots:
             warn("volume %s has snapshot(s): removing" % v.id)

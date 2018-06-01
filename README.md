@@ -219,7 +219,8 @@ update block_device_mapping set boot_index=0 where deleted=0 and volume_id='ca16
 
 The `migration_planner.py` script can be used to build a detailed list of
 steps to execute in order to migrate the existing volumes. The output can
-be executed verbatim in a shell but it not meant to be used as a shell script.
+be executed verbatim in a shell but it is not meant to be used as a shell
+script.
 
 The script expects one or more arguments in the form `oldtype=newtype` where
 `oldtype` is the original volume type and `newtype` is the volume type we want

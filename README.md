@@ -80,6 +80,9 @@ keyring:
 libvirt_secret_uuid: 457eb676-33da-42ec-9a8c-9293d545c337
 ```
 
+The variable `libvirt_secret_uuid` should be set to a random UUID: it can be
+generated using the `uuidgen` command.
+
 Copy the `/etc/ceph/ceph.conf` file from the SES cluster in the same directory
 as the `vars.yml` file, rename it to `ceph.conf.j2` and make any required change.
 

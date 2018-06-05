@@ -53,9 +53,9 @@ changed depending on the environment: see the official ceph
 ### Create keyrings
 
 ```sh
-ceph auth get-or-create client.cinder mon 'allow r' osd 'allow class-read object_prefix rbd_children, allow rwx pool=volumes, allow rwx pool=vms, allow rwx pool=images'
-ceph auth get-or-create client.glance mon 'allow r' osd 'allow class-read object_prefix rbd_children, allow rwx pool=images'
-ceph auth get-or-create client.cinder-backup mon 'allow r' osd 'allow class-read object_prefix rbd_children, allow rwx pool=backups'
+ceph auth get-or-create client.glance mon 'profile rbd' osd 'profile rbd pool=images'
+ceph auth get-or-create client.cinder mon 'profile rbd' osd 'profile rbd pool=volumes, profile rbd pool=vms, profile rbd pool=images'
+ceph auth get-or-create client.cinder-backup mon 'profile rbd' osd 'profile rbd pool=backups'
 ```
 
 The keys generated here will be used in the next step.

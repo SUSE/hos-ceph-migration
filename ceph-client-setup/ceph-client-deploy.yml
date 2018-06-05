@@ -79,7 +79,7 @@
   tasks:
 
     - name: Copy cinder keyring file to compute nodes
-      template: src=ceph.keyring.j2 dest=/etc/ceph/ceph.{{ item }}.keyring owner=nova group=nova mode=0644 # FIXME: check permissions
+      template: src=ceph.keyring.j2 dest=/etc/ceph/ceph.{{ item }}.keyring owner=nova group=nova mode=0640
       with_items:
         - client.cinder
 

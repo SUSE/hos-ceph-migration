@@ -6,4 +6,4 @@ keyring:
   client.cinder-backup: AQCg1Qtb16TzKRAAM76vnJIjWSl5hbFfi+oqpw==
 
 libvirt_secret_uuid: 993b98b1-7c4f-4c23-95ff-1c14fb3e5e1c
-cluster_name: ses
+cluster_name: ceph

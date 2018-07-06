@@ -21,6 +21,10 @@
       yum: name=ceph-common state=latest
       when: ansible_os_family == 'RedHat'
 
+    - name: Install ceph-common - SuSE
+      zypper: name=ceph-common state=latest
+      when: ansible_os_family == 'Suse'
+
     - name: Copy ceph configuration file
       template: src=ceph.conf.j2 dest=/etc/ceph/ceph.conf
 
@@ -36,13 +40,21 @@
       yum: name=python-rbd state=latest
       when: ansible_os_family == 'RedHat'
 
+    - name: Install python-rbd - SuSE
+      zypper: name=python-rbd state=latest
+      when: ansible_os_family == 'Suse'
+
 - hosts: NOV-CMP
   sudo: yes
   tasks:
 
-    - name: Install ceph backend for libvirt
+    - name: Install ceph backend for libvirt - Debian
       apt: name=qemu-block-extra state=present
       when: ansible_os_family == 'Debian'
+      
+    - name: Install ceph backend for libvirt - SuSE
+      zypper: name=qemu-block-rbd state=present
+      when: ansible_os_family == 'Suse'
 
 
 ### Copy required keyrings
@@ -111,16 +123,3 @@
 
     - name: Set libvirt secret value for cinder keyring 
       shell: virsh secret-set-value --secret '{{ libvirt_secret_uuid }}' --base64 '{{ keyring["client.cinder"] }}' 
-
-
-
-### Configure nova-compute
-
-- hosts: NOV-CMP
-  sudo: yes
-  vars_files:
-    - vars.yml
-  tasks:
-
-    - name: Install ceph backend for libvirt
-      apt: name=qemu-block-extra state=present

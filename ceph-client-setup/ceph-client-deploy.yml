@@ -22,7 +22,7 @@
       when: ansible_os_family == 'RedHat'
 
     - name: Install ceph-common - SuSE
-      yum: name=ceph-common state=latest
+      zypper: name=ceph-common state=latest
       when: ansible_os_family == 'Suse'
 
     - name: Copy ceph configuration file
@@ -41,7 +41,7 @@
       when: ansible_os_family == 'RedHat'
 
     - name: Install python-rbd - SuSE
-      yum: name=python-rbd state=latest
+      zypper: name=python-rbd state=latest
       when: ansible_os_family == 'Suse'
 
 - hosts: NOV-CMP
@@ -53,7 +53,7 @@
       when: ansible_os_family == 'Debian'
       
     - name: Install ceph backend for libvirt - SuSE
-      apt: name=qemu-block-rbd state=present
+      zypper: name=qemu-block-rbd state=present
       when: ansible_os_family == 'Suse'
 
 

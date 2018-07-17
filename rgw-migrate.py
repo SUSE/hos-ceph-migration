@@ -69,19 +69,21 @@ def make_boto_connection(account):
 def migrate_object(src_s3, dst_s3, bucket, key):
     def progress(a,b):
         if b > 0:
-            info("%s / %s : %4.1f" % (bucket, key, a * 100.0 / b))
+            info("Progress: %s / %s : %4.1f" % (bucket, key, a * 100.0 / b))
     info("Uploading %s / %s" % (bucket, key))
     try:
         t1 = time.time()
         s3_from = make_boto_connection(src_s3)
         s3_to = make_boto_connection(dst_s3)
         key_from = s3_from.get_bucket(bucket).get_key(key)
-        slo = s3_from.make_request('HEAD', bucket, key).getheader('x-object-manifest')
+        extra = s3_from.make_request('HEAD', bucket, key)
+        headers = {k[2:]: v for k, v in extra.getheaders() if k.startswith('x-amz-meta') or k == 'x-object-manifest'}
+        slo = headers.get('object-manifest')
         key_to = s3_to.get_bucket(bucket).new_key(key)
         if key_from.size > 0 and slo is None:
-            key_to.set_contents_from_file(KeyFile(key_from), cb=progress)
+            key_to.set_contents_from_file(KeyFile(key_from), headers=headers, cb=progress)
         else:
-            key_to.set_contents_from_string('', headers={'object-manifest': slo} if slo is not None else None)
+            key_to.set_contents_from_string('', headers=headers)
         key_to.close()
         key_from.close()
         t2 = time.time()
@@ -129,7 +131,7 @@ def migrate(src_s3, dst_s3):
                     admin_bucket_to.unlink()
                     admin_bucket_to.link(b.owner)
             for key_from in bucket_from.list():
-                info("Checking %s / %s (%d bytes, etag=%s, meta=%s)" % (b.name, key_from.name, key_from.size, key_from.etag, str(key_from.metadata)))
+                info("Checking %s / %s (%d bytes, etag=%s)" % (b.name, key_from.name, key_from.size, key_from.etag))
                 key_to = bucket_to.get_key(key_from.name)
                 if key_to is not None:
                     if key_to.size != key_from.size or key_to.etag != key_from.etag:

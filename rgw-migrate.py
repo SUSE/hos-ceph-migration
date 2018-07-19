@@ -8,6 +8,7 @@ import boto.s3.connection
 from boto.s3.keyfile import KeyFile
 from multiprocessing import Pool
 import click
+import logging
 
 ### BEGIN Workaround radosgw client API bug
 class Stats(object):
@@ -34,12 +35,8 @@ class Stats(object):
 radosgw.user.Stats = Stats
 ### END Workaround radosgw client API bug
 
-def info(msg):
-    print("# "+msg)
-
-def warn(msg):
-    print("# WARNING: "+msg)
-
+logging.basicConfig(level=logging.INFO, format='%(asctime)-15s %(levelname)-9s %(message)s')
+logger = logging.getLogger(__name__)
 
 OS_UID_RE = re.compile('^[0-9a-fA-F]{32}$')
 
@@ -68,10 +65,10 @@ def make_boto_connection(account):
     )
 
 def migrate_object(src_s3, dst_s3, bucket, key):
-    def progress(a,b):
+    def progress(a, b):
         if b > 0:
-            info("Progress: %s / %s : %4.1f" % (bucket, key, a * 100.0 / b))
-    info("Uploading %s / %s" % (bucket, key))
+            logger.info("Progress: %s/%s : %4.1f%%" % (bucket, key, a * 100.0 / b))
+    logger.info("Uploading %s/%s" % (bucket, key))
     try:
         t1 = time.time()
         s3_from = make_boto_connection(src_s3)
@@ -91,7 +88,8 @@ def migrate_object(src_s3, dst_s3, bucket, key):
         elapsed = t2 - t1
         return (bucket, key, key_from.size, elapsed)
     except:
-        return (bucket, key, -1, traceback.format_exc())
+        logger.exception('Uploading %s/%s FAILED!', bucket, key)
+        return (bucket, key, -1, traceback.extract_stack())
 
 def migrate_object_job(migration):
     return migrate_object(*migration)
@@ -118,13 +116,13 @@ def migrate(src, dst, jobs):
             if OS_UID_RE.match(b.owner) is None:
                 # Ignore buckets not owned by openstack users
                 continue
-            info("Migrating bucket "+b.name)
+            logger.info("Migrating bucket "+b.name)
             if b.owner not in known_users:
                 user = admin_from.get_user(b.owner)
                 try:
                     user_to = admin_to.get_user(b.owner)
                 except radosgw.exception.NoSuchUser:
-                    info("Migrating user: %s (%s)" % (user.display_name, user.uid))
+                    logger.info("Migrating user: %s (%s)" % (user.display_name, user.uid))
                     user_to = admin_to.create_user(user.uid, user.display_name, generate_key=False)
                     user_to._update_from_user(user.__dict__)
                 known_users[b.owner] = user
@@ -135,29 +133,28 @@ def migrate(src, dst, jobs):
                 bucket_to = s3_to.create_bucket(b.name)
                 admin_bucket_to = admin_to.get_bucket(b.name)
                 if admin_bucket_to.owner != b.owner:
-                    info("Setting owner of bucket %s to %s" % (b.name, b.owner))
+                    logger.info("Setting owner of bucket %s to %s" % (b.name, b.owner))
                     admin_bucket_to.unlink()
                     admin_bucket_to.link(b.owner)
             for key_from in bucket_from.list():
-                info("Checking %s / %s (%d bytes, etag=%s)" % (b.name, key_from.name, key_from.size, key_from.etag))
+                logger.info("Checking %s/%s (%d bytes, etag=%s)" % (b.name, key_from.name, key_from.size, key_from.etag))
                 key_to = bucket_to.get_key(key_from.name)
                 if key_to is not None:
                     if key_to.size != key_from.size or key_to.etag != key_from.etag:
-                        info("Key already present but out of date")
+                        logger.info("Key already present but out of date")
                         key_to.delete()
                     else:
-                        info("Key already present and up to date")
+                        logger.info("Key already present and up to date")
                         continue
-                info("Submitting for upload")
+                logger.info("Submitting for upload")
                 yield (src_s3, dst_s3, b.name, key_from.name)
 
     pool = Pool(processes=jobs)
     for bucket, key, size, elapsed in pool.imap_unordered(migrate_object_job, iter_objects(admin_from, s3_from, admin_to, s3_to)):
         if size < 0:
-            info("Upload of %s / %s FAILED!" % (bucket, key))
-            info(elapsed)
+            logger.info("Upload of %s/%s FAILED!" % (bucket, key))
         else:
-            info("Upload of %s / %s completed in %ds" % (bucket, key, elapsed))
+            logger.info("Upload of %s/%s completed in %ds" % (bucket, key, elapsed))
     pool.close()
     pool.join()
 

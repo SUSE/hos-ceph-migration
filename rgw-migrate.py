@@ -7,6 +7,7 @@ import boto
 import boto.s3.connection
 from boto.s3.keyfile import KeyFile
 from multiprocessing import Pool
+import click
 
 ### BEGIN Workaround radosgw client API bug
 class Stats(object):
@@ -95,7 +96,14 @@ def migrate_object(src_s3, dst_s3, bucket, key):
 def migrate_object_job(migration):
     return migrate_object(*migration)
 
-def migrate(src_s3, dst_s3):
+@click.command()
+@click.option('--jobs', '-j', type=click.IntRange(min=1, max=None), default=10,
+    help='Number of parallel trasfers (default=10)')
+@click.argument('src', type=str, nargs=1)
+@click.argument('dst', type=str, nargs=1)
+def migrate(src, dst, jobs):
+    src_s3 = decode_s3_account(src)
+    dst_s3 = decode_s3_account(dst)
     admin_from = make_admin_connection(src_s3)
     s3_from = make_boto_connection(src_s3)
     admin_to = make_admin_connection(dst_s3)
@@ -143,7 +151,7 @@ def migrate(src_s3, dst_s3):
                 info("Submitting for upload")
                 yield (src_s3, dst_s3, b.name, key_from.name)
 
-    pool = Pool(processes=20)
+    pool = Pool(processes=jobs)
     for bucket, key, size, elapsed in pool.imap_unordered(migrate_object_job, iter_objects(admin_from, s3_from, admin_to, s3_to)):
         if size < 0:
             info("Upload of %s / %s FAILED!" % (bucket, key))
@@ -155,5 +163,5 @@ def migrate(src_s3, dst_s3):
 
 
 if __name__ == '__main__':
-    if len(sys.argv) > 2:
-        migrate(decode_s3_account(sys.argv[1]), decode_s3_account(sys.argv[2]))
+    # pylint: disable=E1120
+    migrate()

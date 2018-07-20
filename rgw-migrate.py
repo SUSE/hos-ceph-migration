@@ -79,9 +79,9 @@ def migrate_object(src_s3, dst_s3, bucket, key):
         slo = headers.get('object-manifest')
         key_to = s3_to.get_bucket(bucket).new_key(key)
         if key_from.size > 0 and slo is None:
-            key_to.set_contents_from_file(KeyFile(key_from), headers=headers, cb=progress)
+            key_to.set_contents_from_file(KeyFile(key_from), headers=headers, cb=progress, policy='bucket-owner-full-control')
         else:
-            key_to.set_contents_from_string('', headers=headers)
+            key_to.set_contents_from_string('', headers=headers, policy='bucket-owner-full-control')
         key_to.close()
         key_from.close()
         t2 = time.time()

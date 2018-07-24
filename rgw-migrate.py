@@ -9,6 +9,8 @@ from boto.s3.keyfile import KeyFile
 from multiprocessing import Pool
 import click
 import logging
+import swiftclient
+import json
 
 ### BEGIN Workaround radosgw client API bug
 class Stats(object):
@@ -33,7 +35,83 @@ class Stats(object):
                                                                                 self.size_utilized)
 
 radosgw.user.Stats = Stats
-### END Workaround radosgw client API bug
+
+def _update_from_user(self, user):
+    if type(user) is dict:
+        user_dict = user
+    else:
+        user_dict = user.__dict__
+    self.user_id = user_dict['user_id']
+    self.tenant = user_dict.get('tenant')
+    self.display_name = user_dict['display_name']
+    self.email = user_dict['email']
+    self.suspended = user_dict['suspended']
+    self.max_buckets = user_dict['max_buckets']
+    # subusers
+    self.subusers = []
+    subusers = user_dict['subusers']
+    for subuser in subusers:
+        # TODO
+        pass
+    # keys (s3)
+    self.keys = []
+    keys = user_dict['keys']
+    for key in keys:
+        if type(key) is dict:
+            key_dict = key
+        else:
+            key_dict = key.__dict__
+        s3key = radosgw.user.Key(key_dict['user'],
+                                 key_dict['access_key'], key_dict['secret_key'],
+                                 's3')
+        self.keys.append(s3key)
+    # swift_keys
+    self.swift_keys = []
+    keys = user_dict['swift_keys']
+    for key in keys:
+        if type(key) is dict:
+            key_dict = key
+        else:
+            key_dict = key.__dict__
+        swiftkey = radosgw.user.Key(key_dict['user'],
+                                    key_dict['secret_key'],
+                                    'swift')
+        self.swift_keys.append(swiftkey)
+    # caps
+    self.caps = []
+    caps = user_dict['caps']
+    for cap in caps:
+        if type(cap) is dict:
+            cap_dict = cap
+        else:
+            cap_dict = cap.__dict__
+        ucap = radosgw.user.Cap(cap_dict['type'], cap_dict['perm'])
+        self.caps.append(ucap)
+    if 'stats' in user_dict:
+        self.stats = Stats(user_dict['stats'])
+    else:
+        self.stats = None
+
+radosgw.user.UserInfo._update_from_user = _update_from_user
+
+_kwargs_get = radosgw.connection._kwargs_get
+
+def create_subuser(self, uid, subuser, **kwargs):
+    params = {'uid': uid, 'subuser': subuser}
+    _kwargs_get('generate_secret', kwargs, params)
+    _kwargs_get('secret', kwargs, params)
+    _kwargs_get('key_type', kwargs, params, 's3')
+    _kwargs_get('access', kwargs, params)
+    _kwargs_get('format', kwargs, params, 'json')
+    logger.info("CREATING SUBUSER: %s", params)
+    response = self.make_request('PUT', path='/user?subuser', query_params=params)
+    body = self._process_response(response)
+    subuser_dict = json.loads(body)
+    return subuser_dict
+
+radosgw.connection.RadosGWAdminConnection.create_subuser = create_subuser
+
+### END Workaround radosgw client API bugs
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)-15s %(levelname)-9s %(message)s')
 logger = logging.getLogger(__name__)
@@ -64,25 +142,26 @@ def make_boto_connection(account):
         is_secure=False
     )
 
-def migrate_object(src_s3, dst_s3, bucket, key):
-    def progress(a, b):
-        if b > 0:
-            logger.info("Progress: %s/%s : %4.1f%%" % (bucket, key, a * 100.0 / b))
-    logger.info("Uploading %s/%s" % (bucket, key))
+def make_swift_connection(account, user, password):
+    return swiftclient.Connection(authurl='http://{}:{}/auth'.format(account.host, account.port),
+        user=user, key=password)
+
+def migrate_object(src_s3, dst_s3, owner, bucket, key):
+    logger.info("Uploading %s/%s as %s", bucket, key, owner.uid)
     try:
         t1 = time.time()
         s3_from = make_boto_connection(src_s3)
-        s3_to = make_boto_connection(dst_s3)
+        swift_cred = owner.swift_keys[0]
+        swift_to = make_swift_connection(dst_s3, swift_cred.user, swift_cred.access_key)
         key_from = s3_from.get_bucket(bucket).get_key(key)
-        extra = s3_from.make_request('HEAD', bucket, key)
-        headers = {k[2:]: v for k, v in extra.getheaders() if k.startswith('x-amz-meta') or k == 'x-object-manifest'}
-        slo = headers.get('object-manifest')
-        key_to = s3_to.get_bucket(bucket).new_key(key)
-        if key_from.size > 0 and slo is None:
-            key_to.set_contents_from_file(KeyFile(key_from), headers=headers, cb=progress, policy='bucket-owner-full-control')
+        orig_headers = s3_from.make_request('HEAD', bucket, key).getheaders()
+        headers = {k: v for k, v in orig_headers if k in ('x-object-manifest', 'content-type')}
+        headers.update({k.replace('x-amz-meta-', 'x-object-meta-'): v for k, v in orig_headers if k.startswith('x-amz-meta-')})
+        lo = headers.get('x-object-manifest')
+        if key_from.size > 0 and lo is None:
+            swift_to.put_object(bucket, key, KeyFile(key_from), headers=headers)
         else:
-            key_to.set_contents_from_string('', headers=headers, policy='bucket-owner-full-control')
-        key_to.close()
+            swift_to.put_object(bucket, key, '', headers=headers)
         key_from.close()
         t2 = time.time()
         elapsed = t2 - t1
@@ -122,18 +201,21 @@ def migrate(src, dst, jobs):
                 try:
                     user_to = admin_to.get_user(b.owner)
                 except radosgw.exception.NoSuchUser:
-                    logger.info("Migrating user: %s (%s)" % (user.display_name, user.uid))
+                    logger.info("Migrating user: %s (%s)" % (user.display_name, user.uid), exc_info=0)
                     user_to = admin_to.create_user(user.uid, user.display_name, generate_key=False)
-                    user_to._update_from_user(user.__dict__)
-                known_users[b.owner] = user
+                if len(user_to.swift_keys) < 1:
+                    admin_to.create_subuser(user.uid, user.uid+':migration', key_type='swift', generate_secret=True, access='full')
+                    user_to = admin_to.get_user(b.owner)
+                known_users[b.owner] = user_to
             bucket_from = s3_from.get_bucket(b.name)
+            logger.info("CONTAINER ACL: %s", bucket_from.get_policy())
             try:
                 bucket_to = s3_to.get_bucket(b.name)
             except boto.exception.S3ResponseError:
                 bucket_to = s3_to.create_bucket(b.name)
                 admin_bucket_to = admin_to.get_bucket(b.name)
                 if admin_bucket_to.owner != b.owner:
-                    logger.info("Setting owner of bucket %s to %s" % (b.name, b.owner))
+                    logger.info("Setting owner of bucket %s to %s" % (b.name, b.owner), exc_info=0)
                     admin_bucket_to.unlink()
                     admin_bucket_to.link(b.owner)
             for key_from in bucket_from.list():
@@ -147,7 +229,7 @@ def migrate(src, dst, jobs):
                         logger.info("Key already present and up to date")
                         continue
                 logger.info("Submitting for upload")
-                yield (src_s3, dst_s3, b.name, key_from.name)
+                yield (src_s3, dst_s3, known_users[key_from.owner.id], b.name, key_from.name)
 
     pool = Pool(processes=jobs)
     for bucket, key, size, elapsed in pool.imap_unordered(migrate_object_job, iter_objects(admin_from, s3_from, admin_to, s3_to)):

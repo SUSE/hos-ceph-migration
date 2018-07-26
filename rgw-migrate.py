@@ -1,16 +1,11 @@
 #!/usr/bin/env python
 
-import os, re, sys, time, traceback
+import json, logging, os, re, sys, time, traceback
 from collections import namedtuple
-import radosgw
-import boto
-import boto.s3.connection
-from boto.s3.keyfile import KeyFile
 from multiprocessing import Pool
 import click
-import logging
+import radosgw
 import swiftclient
-import json
 
 ### BEGIN Workaround radosgw client API bug
 class Stats(object):
@@ -103,7 +98,6 @@ def create_subuser(self, uid, subuser, **kwargs):
     _kwargs_get('key_type', kwargs, params, 's3')
     _kwargs_get('access', kwargs, params)
     _kwargs_get('format', kwargs, params, 'json')
-    logger.info("CREATING SUBUSER: %s", params)
     response = self.make_request('PUT', path='/user?subuser', query_params=params)
     body = self._process_response(response)
     subuser_dict = json.loads(body)
@@ -111,14 +105,35 @@ def create_subuser(self, uid, subuser, **kwargs):
 
 radosgw.connection.RadosGWAdminConnection.create_subuser = create_subuser
 
+def get_quota(self, uid, qtype='user'):
+    params = {'uid': uid, 'quota-type': qtype, 'format': 'json'}
+    response = self.make_request('GET', path='/user?quota', query_params=params)
+    body = self._process_response(response)
+    quota_dict = json.loads(body)
+    return quota_dict
+
+radosgw.connection.RadosGWAdminConnection.get_quota = get_quota
+
+def set_quota(self, uid, qtype='user', **kwargs):
+    params = {'uid': uid, 'quota-type': qtype}
+    newargs = {k.replace('_', '-'): v for k, v in kwargs.items()}
+    params.update(newargs)
+    response = self.make_request('PUT', path='/user?quota', query_params=params)
+    self._process_response(response)
+
+radosgw.connection.RadosGWAdminConnection.set_quota = set_quota
+
 ### END Workaround radosgw client API bugs
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)-15s %(levelname)-9s %(message)s')
-logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO, format='%(asctime)-15s %(name)-14s %(levelname)-9s %(message)s')
+logger = logging.getLogger('rgw-migrate')
+for mute in ('swiftclient', 'boto', 'requests'):
+    logging.getLogger(mute).setLevel(logging.CRITICAL)
 
 OS_UID_RE = re.compile('^[0-9a-fA-F]{32}$')
 
 s3_account = namedtuple('s3_account', ['host', 'port', 'access_key', 'secret_key'])
+swift_account = namedtuple('swift_account', ['host', 'port', 'user', 'key'])
 
 def decode_s3_account(account):
     host, port, access, secret = account.split(':')
@@ -133,39 +148,33 @@ def make_admin_connection(account):
         is_secure=False
     )
 
-def make_boto_connection(account):
-    return boto.connect_s3(
-        aws_access_key_id=account.access_key,
-        aws_secret_access_key=account.secret_key,
-        host=account.host, port=account.port,
-        calling_format=boto.s3.connection.OrdinaryCallingFormat(),
-        is_secure=False
-    )
-
-def make_swift_connection(account, user, password):
+def make_swift_connection(account):
     return swiftclient.Connection(authurl='http://{}:{}/auth'.format(account.host, account.port),
-        user=user, key=password)
+        user=account.user, key=account.key)
 
-def migrate_object(src_s3, dst_s3, owner, bucket, key):
-    logger.info("Uploading %s/%s as %s", bucket, key, owner.uid)
+def migrate_object(src_swift, dst_swift, bucket, key):
+    logger.info("Uploading %s/%s", bucket, key)
     try:
         t1 = time.time()
-        s3_from = make_boto_connection(src_s3)
-        swift_cred = owner.swift_keys[0]
-        swift_to = make_swift_connection(dst_s3, swift_cred.user, swift_cred.access_key)
-        key_from = s3_from.get_bucket(bucket).get_key(key)
-        orig_headers = s3_from.make_request('HEAD', bucket, key).getheaders()
-        headers = {k: v for k, v in orig_headers if k in ('x-object-manifest', 'content-type')}
-        headers.update({k.replace('x-amz-meta-', 'x-object-meta-'): v for k, v in orig_headers if k.startswith('x-amz-meta-')})
+        swift_from = make_swift_connection(src_swift)
+        swift_to = make_swift_connection(dst_swift)
+        hdr_from = swift_from.head_object(bucket, key)
+        headers = {
+            k: v for k, v in hdr_from.items() if k in (
+                'x-object-manifest', 'content-type', 'last-modified', 'x-timestamp'
+                ) or k.startswith('x-object-meta-')}
         lo = headers.get('x-object-manifest')
-        if key_from.size > 0 and lo is None:
-            swift_to.put_object(bucket, key, KeyFile(key_from), headers=headers)
+        size = int(hdr_from.get('content-length'))
+        if size > 0 and lo is None:
+            hdr_from, key_from = swift_from.get_object(bucket, key)
+            logger.info("Uploading %s/%s as regular object (%d bytes)", bucket, key, size)
+            swift_to.put_object(bucket, key, key_from, headers=headers)
         else:
+            logger.info("Uploading %s/%s as large object (%d bytes)", bucket, key, size)
             swift_to.put_object(bucket, key, '', headers=headers)
-        key_from.close()
         t2 = time.time()
         elapsed = t2 - t1
-        return (bucket, key, key_from.size, elapsed)
+        return (bucket, key, size, elapsed)
     except:
         logger.exception('Uploading %s/%s FAILED!', bucket, key)
         return (bucket, key, -1, traceback.extract_stack())
@@ -173,21 +182,36 @@ def migrate_object(src_s3, dst_s3, owner, bucket, key):
 def migrate_object_job(migration):
     return migrate_object(*migration)
 
+def ensure_swift_subuser(admin, uid):
+    user = admin.get_user(uid)
+    if len(user.swift_keys) < 1:
+        admin.create_subuser(user.uid, user.uid+':migration', key_type='swift', generate_secret=True, access='full')
+        user = admin.get_user(uid)
+    return user
+
 @click.command()
-@click.option('--jobs', '-j', type=click.IntRange(min=1, max=None), default=10,
-    help='Number of parallel trasfers (default=10)')
+@click.option('--jobs', '-j', type=click.IntRange(min=1, max=None), default=20, metavar="JOBS",
+    help='Number of parallel trasfers (default=20)')
 @click.argument('src', type=str, nargs=1)
 @click.argument('dst', type=str, nargs=1)
 def migrate(src, dst, jobs):
-    src_s3 = decode_s3_account(src)
-    dst_s3 = decode_s3_account(dst)
-    admin_from = make_admin_connection(src_s3)
-    s3_from = make_boto_connection(src_s3)
-    admin_to = make_admin_connection(dst_s3)
-    s3_to = make_boto_connection(dst_s3)
+    """
+        Migrate radosgw data between two Ceph clusters
 
-    def iter_objects(admin_from, s3_from, admin_to, s3_to):
-        known_users = {}
+        SRC and DST represent radosgw admin credentials for source
+        and destination clusters in the following format:
+
+            host:port:access_key:secret_key
+    """
+
+    def iter_objects(src_cred, dst_cred):
+        src_s3 = decode_s3_account(src_cred)
+        dst_s3 = decode_s3_account(dst_cred)
+        admin_from = make_admin_connection(src_s3)
+        admin_to = make_admin_connection(dst_s3)
+
+        known_users_to = {}
+        known_users_from = {}
 
         buckets = admin_from.get_buckets()
 
@@ -196,43 +220,60 @@ def migrate(src, dst, jobs):
                 # Ignore buckets not owned by openstack users
                 continue
             logger.info("Migrating bucket "+b.name)
-            if b.owner not in known_users:
-                user = admin_from.get_user(b.owner)
+            try:
+                user_from = known_users_from[b.owner]
+            except KeyError:
+                user_from = ensure_swift_subuser(admin_from, b.owner)
+                known_users_from[b.owner] = user_from
+            try:
+                user_to = known_users_to[b.owner]
+            except KeyError:
                 try:
                     user_to = admin_to.get_user(b.owner)
                 except radosgw.exception.NoSuchUser:
-                    logger.info("Migrating user: %s (%s)" % (user.display_name, user.uid), exc_info=0)
-                    user_to = admin_to.create_user(user.uid, user.display_name, generate_key=False)
-                if len(user_to.swift_keys) < 1:
-                    admin_to.create_subuser(user.uid, user.uid+':migration', key_type='swift', generate_secret=True, access='full')
-                    user_to = admin_to.get_user(b.owner)
-                known_users[b.owner] = user_to
-            bucket_from = s3_from.get_bucket(b.name)
-            logger.info("CONTAINER ACL: %s", bucket_from.get_policy())
+                    logger.info("Migrating user: %s (%s)" % (user_from.display_name, user_from.uid), exc_info=0)
+                    user_to = admin_to.create_user(user_from.uid, user_from.display_name, generate_key=False)
+                    user_quota = admin_from.get_quota(b.owner, 'user')
+                    admin_to.set_quota(b.owner, 'user', **user_quota)
+                    bucket_quota = admin_from.get_quota(b.owner, 'bucket')
+                    admin_to.set_quota(b.owner, 'bucket', **bucket_quota)
+                    logger.info("Updated user quota for %s: user=%s bucket=%s", b.owner, user_quota, bucket_quota)
+                user_to = ensure_swift_subuser(admin_to, b.owner)
+                known_users_to[b.owner] = user_to
+
+            swift_account_from = swift_account(src_s3.host, src_s3.port, user_from.swift_keys[0].user, user_from.swift_keys[0].access_key)
+            swift_account_to = swift_account(dst_s3.host, dst_s3.port, user_to.swift_keys[0].user, user_to.swift_keys[0].access_key)
+
+            swift_from = make_swift_connection(swift_account_from)
+            swift_to = make_swift_connection(swift_account_to)
+
+            container_from_hdrs, container_from = swift_from.get_container(b.name, full_listing=True)
+            filtered_hdrs = {
+                k: v for k, v in container_from_hdrs.items() if k in (
+                    'x-storage-policy', 'default-placement', 'x-timestamp', 'x-container-read', 'x-container-write'
+                    ) or k.startswith('x-container-meta-')}
             try:
-                bucket_to = s3_to.get_bucket(b.name)
-            except boto.exception.S3ResponseError:
-                bucket_to = s3_to.create_bucket(b.name)
-                admin_bucket_to = admin_to.get_bucket(b.name)
-                if admin_bucket_to.owner != b.owner:
-                    logger.info("Setting owner of bucket %s to %s" % (b.name, b.owner), exc_info=0)
-                    admin_bucket_to.unlink()
-                    admin_bucket_to.link(b.owner)
-            for key_from in bucket_from.list():
-                logger.info("Checking %s/%s (%d bytes, etag=%s)" % (b.name, key_from.name, key_from.size, key_from.etag))
-                key_to = bucket_to.get_key(key_from.name)
-                if key_to is not None:
-                    if key_to.size != key_from.size or key_to.etag != key_from.etag:
+                swift_to.head_container(b.name)
+            except swiftclient.ClientException:
+                swift_to.put_container(b.name, headers=filtered_hdrs)
+            for obj in container_from:
+                logger.info("Checking %s/%s (%d bytes, etag=%s)", b.name, obj['name'], obj['bytes'], obj['hash'])
+                try:
+                    obj_to_hdrs = swift_to.head_object(b.name, obj['name'])
+                except swiftclient.ClientException:
+                    pass
+                else:
+                    if int(obj_to_hdrs['content-length']) != obj['bytes'] or obj_to_hdrs['etag'] != obj['hash']:
                         logger.info("Key already present but out of date")
-                        key_to.delete()
+                        swift_to.delete_object(b.name, obj['name'])
                     else:
                         logger.info("Key already present and up to date")
                         continue
                 logger.info("Submitting for upload")
-                yield (src_s3, dst_s3, known_users[key_from.owner.id], b.name, key_from.name)
+                yield (swift_account_from, swift_account_to, b.name, obj['name'])
 
     pool = Pool(processes=jobs)
-    for bucket, key, size, elapsed in pool.imap_unordered(migrate_object_job, iter_objects(admin_from, s3_from, admin_to, s3_to)):
+    for bucket, key, size, elapsed in pool.imap_unordered(migrate_object_job, iter_objects(src, dst)):
         if size < 0:
             logger.info("Upload of %s/%s FAILED!" % (bucket, key))
         else:

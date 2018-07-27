@@ -112,9 +112,9 @@ Edit `~/helion/my_cloud/config/cinder/cinder.conf.j2` and add a new section
 for the ceph backend, for example:
 
 ```ini
-[ses]
+[ses_ceph]
 volume_driver = cinder.volume.drivers.rbd.RBDDriver
-volume_backend_name = ceph
+volume_backend_name = ses_ceph
 rbd_pool = volumes
 rbd_ceph_conf = /etc/ceph/ceph.conf
 rbd_flatten_volume_from_snapshot = false
@@ -131,7 +131,7 @@ and that the new backend is listed in `enabled_backends` in the
 `DEFAULTS` section, for example:
 
 ```ini
-enabled_backends=vsa-1,ses
+enabled_backends=vsa-1,ses_ceph
 ```
 
 #### Nova
@@ -173,7 +173,7 @@ ansible-playbook nova-reconfigure.yml
 ```sh
 . ~/service.osrc
 cinder type-create ceph
-cinder type-key ceph set volume_backend_name=ceph
+cinder type-key ceph set volume_backend_name=ses_ceph
 ```
 
 Make sure `volume_backend_name` matches the `volume_backend_name` in the SES

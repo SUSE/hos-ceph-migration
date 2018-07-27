@@ -6,6 +6,7 @@ from multiprocessing import Pool
 import click
 import radosgw
 import swiftclient
+from swiftclient.service import SwiftService, SwiftError
 
 ### BEGIN Workaround radosgw client API bug
 class Stats(object):
@@ -44,10 +45,10 @@ def _update_from_user(self, user):
     self.max_buckets = user_dict['max_buckets']
     # subusers
     self.subusers = []
-    subusers = user_dict['subusers']
-    for subuser in subusers:
-        # TODO
-        pass
+    # subusers = user_dict['subusers']
+    # for subuser in subusers:
+    #     # TODO
+    #     pass
     # keys (s3)
     self.keys = []
     keys = user_dict['keys']
@@ -125,6 +126,16 @@ radosgw.connection.RadosGWAdminConnection.set_quota = set_quota
 
 ### END Workaround radosgw client API bugs
 
+def human_size(size):
+    prefixes = ' KMGTPEZY'
+    if size < 1024.0:
+        return str(size)
+    for p in prefixes:
+        if size > 1024.0:
+            size /= 1024.0
+        else:
+            return '%.1f%s' % (size, p)
+
 logging.basicConfig(level=logging.INFO, format='%(asctime)-15s %(name)-14s %(levelname)-9s %(message)s')
 logger = logging.getLogger('rgw-migrate')
 for mute in ('swiftclient', 'boto', 'requests'):
@@ -167,10 +178,10 @@ def migrate_object(src_swift, dst_swift, bucket, key):
         size = int(hdr_from.get('content-length'))
         if size > 0 and lo is None:
             hdr_from, key_from = swift_from.get_object(bucket, key)
-            logger.info("Uploading %s/%s as regular object (%d bytes)", bucket, key, size)
+            logger.info("Uploading %s/%s as regular object (%sB)", bucket, key, human_size(size))
             swift_to.put_object(bucket, key, key_from, headers=headers)
         else:
-            logger.info("Uploading %s/%s as large object (%d bytes)", bucket, key, size)
+            logger.info("Uploading %s/%s as large object (%sB)", bucket, key, human_size(size))
             swift_to.put_object(bucket, key, '', headers=headers)
         t2 = time.time()
         elapsed = t2 - t1
@@ -207,70 +218,115 @@ def migrate(src, dst, jobs):
     def iter_objects(src_cred, dst_cred):
         src_s3 = decode_s3_account(src_cred)
         dst_s3 = decode_s3_account(dst_cred)
+
+        logger.info("Connecting to radosgw admin API")
         admin_from = make_admin_connection(src_s3)
         admin_to = make_admin_connection(dst_s3)
 
-        known_users_to = {}
-        known_users_from = {}
+        SWIFT_COMMON_OPTS = dict(auth_version='1.0')
 
-        buckets = admin_from.get_buckets()
-
-        for b in buckets:
-            if OS_UID_RE.match(b.owner) is None:
+        for user in admin_from.get_users():
+            if OS_UID_RE.match(user.uid) is None:
                 # Ignore buckets not owned by openstack users
                 continue
-            logger.info("Migrating bucket "+b.name)
+            user_from = ensure_swift_subuser(admin_from, user.uid)
             try:
-                user_from = known_users_from[b.owner]
-            except KeyError:
-                user_from = ensure_swift_subuser(admin_from, b.owner)
-                known_users_from[b.owner] = user_from
-            try:
-                user_to = known_users_to[b.owner]
-            except KeyError:
-                try:
-                    user_to = admin_to.get_user(b.owner)
-                except radosgw.exception.NoSuchUser:
-                    logger.info("Migrating user: %s (%s)" % (user_from.display_name, user_from.uid), exc_info=0)
-                    user_to = admin_to.create_user(user_from.uid, user_from.display_name, generate_key=False)
-                    user_quota = admin_from.get_quota(b.owner, 'user')
-                    admin_to.set_quota(b.owner, 'user', **user_quota)
-                    bucket_quota = admin_from.get_quota(b.owner, 'bucket')
-                    admin_to.set_quota(b.owner, 'bucket', **bucket_quota)
-                    logger.info("Updated user quota for %s: user=%s bucket=%s", b.owner, user_quota, bucket_quota)
-                user_to = ensure_swift_subuser(admin_to, b.owner)
-                known_users_to[b.owner] = user_to
+                logger.info("Checking user: %s (%s)" % (user_from.display_name, user_from.uid))
+                user_to = admin_to.get_user(user.uid)
+            except radosgw.exception.NoSuchUser:
+                # Account does not exist in destination cluster: create it
+                logger.info("Migrating user: %s (%s)" % (user_from.display_name, user_from.uid), exc_info=0)
+                user_to = admin_to.create_user(user_from.uid, user_from.display_name, generate_key=False)
+                user_quota = admin_from.get_quota(user.uid, 'user')
+                admin_to.set_quota(user.uid, 'user', **user_quota)
+                bucket_quota = admin_from.get_quota(user.uid, 'bucket')
+                admin_to.set_quota(user.uid, 'bucket', **bucket_quota)
+                logger.info("Updated quota for user %s: user=%s bucket=%s", user.uid, user_quota, bucket_quota)
+            user_to = ensure_swift_subuser(admin_to, user.uid)
 
             swift_account_from = swift_account(src_s3.host, src_s3.port, user_from.swift_keys[0].user, user_from.swift_keys[0].access_key)
             swift_account_to = swift_account(dst_s3.host, dst_s3.port, user_to.swift_keys[0].user, user_to.swift_keys[0].access_key)
 
-            swift_from = make_swift_connection(swift_account_from)
-            swift_to = make_swift_connection(swift_account_to)
+            swift_opts_from = dict(
+                auth='http://{}:{}/auth'.format(swift_account_from.host, swift_account_from.port),
+                user=swift_account_from.user,
+                key=swift_account_from.key)
+            swift_opts_from.update(SWIFT_COMMON_OPTS)
 
-            container_from_hdrs, container_from = swift_from.get_container(b.name, full_listing=True)
-            filtered_hdrs = {
-                k: v for k, v in container_from_hdrs.items() if k in (
-                    'x-storage-policy', 'default-placement', 'x-timestamp', 'x-container-read', 'x-container-write'
-                    ) or k.startswith('x-container-meta-')}
-            try:
-                swift_to.head_container(b.name)
-            except swiftclient.ClientException:
-                swift_to.put_container(b.name, headers=filtered_hdrs)
-            for obj in container_from:
-                logger.info("Checking %s/%s (%d bytes, etag=%s)", b.name, obj['name'], obj['bytes'], obj['hash'])
-                try:
-                    obj_to_hdrs = swift_to.head_object(b.name, obj['name'])
-                except swiftclient.ClientException:
-                    pass
-                else:
-                    if int(obj_to_hdrs['content-length']) != obj['bytes'] or obj_to_hdrs['etag'] != obj['hash']:
-                        logger.info("Key already present but out of date")
-                        swift_to.delete_object(b.name, obj['name'])
-                    else:
-                        logger.info("Key already present and up to date")
-                        continue
-                logger.info("Submitting for upload")
-                yield (swift_account_from, swift_account_to, b.name, obj['name'])
+            swift_opts_to = dict(
+                auth='http://{}:{}/auth'.format(swift_account_to.host, swift_account_to.port),
+                user=swift_account_to.user,
+                key=swift_account_to.key)
+            swift_opts_to.update(SWIFT_COMMON_OPTS)
+
+            with SwiftService(options=swift_opts_from) as swift_from:
+                with SwiftService(options=swift_opts_to) as swift_to:
+                    try:
+                        # List containers owned by the account
+                        account_contents = swift_from.list()
+                        for containers_page in account_contents:
+                            if containers_page['success']:
+                                for container in containers_page['listing']:
+                                    container_name = container['name']
+                                    logger.info("Checking container %s (%d objects, %sB)",
+                                                container_name, container['count']/2, human_size(container['bytes']/2))
+                                    container_from_stats = swift_from.stat(container=container_name)
+                                    container_from_hdrs = container_from_stats['headers']
+                                    try:
+                                        swift_to.stat(container=container_name)
+                                    except SwiftError:
+                                        # Container is not present in destination cluster: create it
+                                        filtered_hdrs = {
+                                            k: v for k, v in container_from_hdrs.items() if k in (
+                                                'x-storage-policy', 'default-placement', 'x-timestamp',
+                                                'x-container-read', 'x-container-write'
+                                                ) or k.startswith('x-container-meta-')}
+                                        logger.info('Migrating container %s', container_name)
+                                        swift_conn_to = make_swift_connection(swift_account_to)
+                                        swift_conn_to.put_container(container_name, filtered_hdrs)
+                                    # List objects in the container
+                                    container_contents = swift_from.list(container=container_name)
+                                    for objects_page in container_contents:
+                                        if objects_page['success']:
+                                            batch = {x['name']: x for x in objects_page['listing']}
+                                            # Check which object already exist in the destination cluster
+                                            objs_stats = swift_to.stat(container=container_name, objects=batch.keys())
+                                            for obj in objs_stats:
+                                                obj_name = obj['object']
+                                                src_obj = batch[obj_name]
+                                                if obj['success']:
+                                                    # Object is present in destination: check size and hash
+                                                    src_size = src_obj['bytes']
+                                                    src_hash = src_obj['hash']
+                                                    dst_size = int(obj['headers']['content-length'])
+                                                    dst_hash = obj['headers']['etag']
+                                                    if dst_size == src_size and dst_hash == src_hash:
+                                                        continue
+                                                    # The object exists in the destination cluster but size and/or
+                                                    # hash do not match. If it's a swift large object, we need to
+                                                    # perform further checks
+                                                    if src_size == 0 and dst_size > 0:
+                                                        # Check if both are large objects
+                                                        src_stats = swift_from.stat(container=container_name, objects=[obj_name])
+                                                        src_obj_stats = list(src_stats)[0]
+                                                        real_src_size = int(src_obj_stats['headers']['content-length'])
+                                                        # We only need to check for DLOs since SLOs are not supported
+                                                        # in Ceph Hammer
+                                                        src_manifest = src_obj_stats['headers'].get('x-object-manifest')
+                                                        dst_manifest = obj['headers'].get('x-object-manifest')
+                                                        if real_src_size == dst_size and src_manifest is not None and src_manifest == dst_manifest:
+                                                            # Both are large objects, have the same size and manifests match
+                                                            continue
+                                                    logger.warn("Destination %s/%s does not match source: deleting", container_name, obj_name)
+                                                    swift_to.delete(container=container_name, objects=[obj_name])
+                                                logger.info("Submitting %s/%s for migration", container_name, obj_name)
+                                                yield (swift_account_from, swift_account_to, container_name, obj_name)
+                                        else:
+                                            raise objects_page['error']
+                            else:
+                                raise containers_page['error']
+                    except SwiftError as e:
+                        logger.error(e.value)
 
     pool = Pool(processes=jobs)
     for bucket, key, size, elapsed in pool.imap_unordered(migrate_object_job, iter_objects(src, dst)):
@@ -280,7 +336,7 @@ def migrate(src, dst, jobs):
             logger.info("Upload of %s/%s completed in %ds" % (bucket, key, elapsed))
     pool.close()
     pool.join()
-
+    logger.info("Migration completed")
 
 if __name__ == '__main__':
     # pylint: disable=E1120

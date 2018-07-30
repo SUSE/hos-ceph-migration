@@ -106,6 +106,24 @@ def create_subuser(self, uid, subuser, **kwargs):
 
 radosgw.connection.RadosGWAdminConnection.create_subuser = create_subuser
 
+def delete_subuser(self, uid, subuser, purge_keys=True):
+    params = {'uid': uid, 'subuser': subuser, 'purge-keys': purge_keys, 'format': 'json'}
+    response = self.make_request('DELETE', path='/user?subuser', query_params=params)
+    return self._process_response(response)
+
+radosgw.connection.RadosGWAdminConnection.delete_subuser = delete_subuser
+
+def delete_key(self, uid, subuser=None, key_type=None):
+    params = {'uid': uid, 'format': 'json'}
+    if subuser is not None:
+        params['subuser'] = subuser
+    if key_type is not None:
+        params['key-type'] = key_type
+    response = self.make_request('DELETE', path='/user?key', query_params=params)
+    return self._process_response(response)
+
+radosgw.connection.RadosGWAdminConnection.delete_key = delete_key
+
 def get_quota(self, uid, qtype='user'):
     params = {'uid': uid, 'quota-type': qtype, 'format': 'json'}
     response = self.make_request('GET', path='/user?quota', query_params=params)
@@ -120,7 +138,7 @@ def set_quota(self, uid, qtype='user', **kwargs):
     newargs = {k.replace('_', '-'): v for k, v in kwargs.items()}
     params.update(newargs)
     response = self.make_request('PUT', path='/user?quota', query_params=params)
-    self._process_response(response)
+    return self._process_response(response)
 
 radosgw.connection.RadosGWAdminConnection.set_quota = set_quota
 
@@ -215,10 +233,7 @@ def migrate(src, dst, jobs):
             host:port:access_key:secret_key
     """
 
-    def iter_objects(src_cred, dst_cred):
-        src_s3 = decode_s3_account(src_cred)
-        dst_s3 = decode_s3_account(dst_cred)
-
+    def iter_objects(src_s3, dst_s3):
         logger.info("Connecting to radosgw admin API")
         admin_from = make_admin_connection(src_s3)
         admin_to = make_admin_connection(dst_s3)
@@ -227,7 +242,7 @@ def migrate(src, dst, jobs):
 
         for user in admin_from.get_users():
             if OS_UID_RE.match(user.uid) is None:
-                # Ignore buckets not owned by openstack users
+                # Ignore non-openstack users
                 continue
             user_from = ensure_swift_subuser(admin_from, user.uid)
             try:
@@ -328,14 +343,38 @@ def migrate(src, dst, jobs):
                     except SwiftError as e:
                         logger.error(e.value)
 
+    src_account = decode_s3_account(src)
+    dst_account = decode_s3_account(dst)
+
     pool = Pool(processes=jobs)
-    for bucket, key, size, elapsed in pool.imap_unordered(migrate_object_job, iter_objects(src, dst)):
+    for bucket, key, size, elapsed in pool.imap_unordered(migrate_object_job, iter_objects(src_account, dst_account)):
         if size < 0:
             logger.info("Upload of %s/%s FAILED!" % (bucket, key))
         else:
             logger.info("Upload of %s/%s completed in %ds" % (bucket, key, elapsed))
     pool.close()
     pool.join()
+
+    logger.info("Removing temporary swift subusers")
+    admin_from = make_admin_connection(src_account)
+    admin_to = make_admin_connection(dst_account)
+
+    for user in admin_from.get_users():
+        if OS_UID_RE.match(user.uid) is None:
+            continue
+        subuser = user.uid+':migration'
+        try:
+            # We have to issue a delete_key() call because Hammer does not
+            # seem to honor the purge_keys flag on delete_subuser()
+            admin_from.delete_key(user.uid, subuser, key_type='swift')
+        except: pass
+        try:
+            admin_from.delete_subuser(user.uid, subuser)
+        except: pass
+        try:
+            admin_to.delete_subuser(user.uid, subuser)
+        except: pass
+
     logger.info("Migration completed")
 
 if __name__ == '__main__':

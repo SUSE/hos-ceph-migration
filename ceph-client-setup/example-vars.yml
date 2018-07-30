@@ -5,5 +5,5 @@ keyring:
   client.glance: AQCQ1Qtb2OW0DhAAQSztXBeWfwdx/qXOvdO5bA==
   client.cinder-backup: AQCg1Qtb16TzKRAAM76vnJIjWSl5hbFfi+oqpw==
 
-libvirt_secret_uuid: 457eb676-33da-42ec-9a8c-9293d545c337
-
+libvirt_secret_uuid: 993b98b1-7c4f-4c23-95ff-1c14fb3e5e1c
+cluster_name: ceph

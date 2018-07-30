@@ -1,2 +1,2 @@
-[{{ item }}]
+[{{ item }}{% if cluster_name != "ceph" %}-{{ cluster_name }}{% endif %}]
 	key = {{ keyring[item] }}

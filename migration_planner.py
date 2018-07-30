@@ -61,15 +61,22 @@ nova = n_client.Client(os.getenv('OS_COMPUTE_API_VERSION', '2'),
                        session=sess,
                        endpoint_type=os.getenv('OS_ENDPOINT_TYPE', 'public'))
 
+NO_ROLLING_FLAG = '--no-rolling'
+
 if len(sys.argv) < 2:
-    print("Syntax: %s <fromtype>=<totype>..." % sys.argv[0])
+    print("Syntax: %s [%s] <fromtype>=<totype>..." % (sys.argv[0], NO_ROLLING_FLAG))
     sys.exit(0)
+
+no_rolling_migration = False
+restart_instances = []
 
 available_volume_types = set([t.name for t in cinder.volume_types.list()])
 
 voltype_map = {}
 for arg in sys.argv[1:]:
-    if '=' in arg:
+    if arg == NO_ROLLING_FLAG:
+        no_rolling_migration = True
+    elif '=' in arg:
         vtfrom, vtto = (x.strip() for x in arg.split('=', 1))
         for t in (vtfrom, vtto):
             if t not in available_volume_types:
@@ -125,6 +132,8 @@ for srv in srvs_with_volumes:
     srv_running = s.status == 'ACTIVE'
     if srv_running:
         instance_power(srv, False)
+        if no_rolling_migration:
+            restart_instances.append(srv)
     vols = [x['id'] for x in s.to_dict().get('os-extended-volumes:volumes_attached')]
     workaround_required = not s.image and vols[0] in backlog
     if workaround_required:
@@ -144,8 +153,15 @@ for srv in srvs_with_volumes:
     if workaround_required:
         # Undo workaround
         patch_volume_boot_index(vols[0], False)
-    if srv_running:
+    if srv_running and not no_rolling_migration:
         instance_power(srv, True)
 
+# In case we are not doing a rolling migration, power back on the instances
+# at the end of the migration
+if restart_instances:
+    info("Before proceding, make sure nova is correctly configured to connect to the new backend")
+    for srv in restart_instances:
+            instance_power(srv, True)
+    
 info("Migration completed: %d volumes, %dGB data, %d instances" %
      (vol_count, vol_total_size, len(srvs_with_volumes)))

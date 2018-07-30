@@ -26,7 +26,7 @@
       when: ansible_os_family == 'Suse'
 
     - name: Copy ceph configuration file
-      template: src=ceph.conf.j2 dest=/etc/ceph/ceph.conf
+      template: src=ceph.conf.j2 dest=/etc/ceph/{{ cluster_name }}.conf
 
 - hosts: GLA-API
   sudo: yes
@@ -68,7 +68,12 @@
   tasks:
 
     - name: Copy cinder keyring file
-      template: src=ceph.keyring.j2 dest=/etc/ceph/ceph.{{ item }}.keyring owner=cinder group=cinder mode=0640
+      template:
+        src: ceph.keyring.j2
+        dest: /etc/ceph/{{ cluster_name }}.{{ item }}{% if cluster_name != "ceph" %}-{{ cluster_name }}{% endif %}.keyring
+        owner: cinder
+        group: cinder
+        mode: 0640
       with_items:
         - client.cinder
 
@@ -80,7 +85,12 @@
   tasks:
 
     - name: Copy cinder-backup keyring file
-      template: src=ceph.keyring.j2 dest=/etc/ceph/ceph.{{ item }}.keyring owner=cinder group=cinder mode=0640
+      template:
+        src: ceph.keyring.j2
+        dest: /etc/ceph/{{ cluster_name }}.{{ item }}{% if cluster_name != "ceph" %}-{{ cluster_name }}{% endif %}.keyring
+        owner: cinder
+        group: cinder
+        mode: 0640
       with_items:
         - client.cinder-backup
 
@@ -91,7 +101,12 @@
   tasks:
 
     - name: Copy cinder keyring file to compute nodes
-      template: src=ceph.keyring.j2 dest=/etc/ceph/ceph.{{ item }}.keyring owner=nova group=nova mode=0640
+      template:
+        src: ceph.keyring.j2
+        dest: /etc/ceph/{{ cluster_name }}.{{ item }}{% if cluster_name != "ceph" %}-{{ cluster_name }}{% endif %}.keyring
+        owner: nova
+        group: nova
+        mode: 0640
       with_items:
         - client.cinder
 
@@ -102,7 +117,12 @@
   tasks:
 
     - name: Copy glance keyring file
-      template: src=ceph.keyring.j2 dest=/etc/ceph/ceph.{{ item }}.keyring owner=glance group=glance mode=0640
+      template:
+        src: ceph.keyring.j2
+        dest: /etc/ceph/{{ cluster_name }}.{{ item }}{% if cluster_name != "ceph" %}-{{ cluster_name }}{% endif %}.keyring
+        owner: glance
+        group: glance
+        mode: 0640
       with_items:
         - client.glance
 

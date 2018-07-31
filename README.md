@@ -1,27 +1,36 @@
-# Migrating HOS 5 block storage to SES
+# Migrating HOS 5 storage to SES
 
-- [Migrating HOS 5 block storage to SES](#migrating-hos-5-block-storage-to-ses)
+- [Migrating HOS 5 storage to SES](#migrating-hos-5-storage-to-ses)
   - [Assumptions](#assumptions)
   - [Preparations on the SES cluster](#preparations-on-the-ses-cluster)
     - [Enable ceph backward compatibility to hammer](#enable-ceph-backward-compatibility-to-hammer)
     - [Create required pools](#create-required-pools)
-  - [Preparing a migration from an HLM-deployed Ceph cluster](#preparing-a-migration-from-an-hlm-deployed-ceph-cluster)
-    - [Create keyrings](#create-keyrings)
-    - [Deploy Ceph client packages](#deploy-ceph-client-packages)
-    - [Modify configuration templates](#modify-configuration-templates)
-      - [Cinder](#cinder)
-      - [Nova](#nova)
-  - [Preparing a migration from non-Ceph backends](#preparing-a-migration-from-non-ceph-backends)
-    - [Create keyrings](#create-keyrings)
-    - [Deploy Ceph client packages](#deploy-ceph-client-packages)
-    - [Modify configuration templates](#modify-configuration-templates)
-      - [Cinder](#cinder)
-  - [Apply the changes to the services](#apply-the-changes-to-the-services)
-  - [Create a volume-type for the SES backend](#create-a-volume-type-for-the-ses-backend)
-  - [Migrate existing volumes](#migrate-existing-volumes)
-  - [Migrate cinder-backed instances](#migrate-cinder-backed-instances)
-  - [Using the migration planning script](#using-the-migration-planning-script)
-    - [Example](#example)
+  - [Block storage](#block-storage)
+    - [Preparing a migration from an HLM-deployed Ceph cluster](#preparing-a-migration-from-an-hlm-deployed-ceph-cluster)
+      - [Create keyrings](#create-keyrings)
+      - [Deploy Ceph client packages](#deploy-ceph-client-packages)
+      - [Modify configuration templates](#modify-configuration-templates)
+        - [Cinder](#cinder)
+        - [Nova](#nova)
+    - [Preparing a migration from non-Ceph backends](#preparing-a-migration-from-non-ceph-backends)
+      - [Create keyrings](#create-keyrings-1)
+      - [Deploy Ceph client packages](#deploy-ceph-client-packages-1)
+      - [Modify configuration templates](#modify-configuration-templates-1)
+        - [Cinder](#cinder-1)
+    - [Apply the changes to the services](#apply-the-changes-to-the-services)
+    - [Create a volume-type for the SES backend](#create-a-volume-type-for-the-ses-backend)
+    - [Migrate existing volumes](#migrate-existing-volumes)
+    - [Migrate cinder-backed instances](#migrate-cinder-backed-instances)
+    - [Using the migration planning script](#using-the-migration-planning-script)
+      - [Example](#example)
+  - [Object storage](#object-storage)
+    - [Create radosgw system users](#create-radosgw-system-users)
+    - [Enable access to radosgw admin API on HOS](#enable-access-to-radosgw-admin-api-on-hos)
+    - [Migrate data](#migrate-data)
+    - [Configure keystone authentication on SES](#configure-keystone-authentication-on-ses)
+    - [Change catalog endpoints for radosgw](#change-catalog-endpoints-for-radosgw)
+    - [Remove radosgw system users](#remove-radosgw-system-users)
+    - [Disable access to radosgw admin API on HOS](#disable-access-to-radosgw-admin-api-on-hos)
   - [Decommission the old storage nodes](#decommission-the-old-storage-nodes)
 
 ## Assumptions
@@ -57,9 +66,11 @@ changed depending on the environment: see the official ceph
 [docs around placement gorups](http://docs.ceph.com/docs/luminous/rados/operations/placement-groups/).
 
 
-## Preparing a migration from an HLM-deployed Ceph cluster
+## Block storage
 
-### Create keyrings
+### Preparing a migration from an HLM-deployed Ceph cluster
+
+#### Create keyrings
 
 On the SES cluster:
 
@@ -72,7 +83,7 @@ ceph auth get-or-create client.cinder-backup-ses mon 'profile rbd' osd 'profile 
 The keys generated here will be used in the next step.
 
 
-### Deploy Ceph client packages
+#### Deploy Ceph client packages
 
 Log into the HOS deployer node as the `stack` user and clone/copy this repo
 to the user's home directory.
@@ -118,17 +129,17 @@ sudo ceph -c /etc/ceph/ses.conf --cluster ses --id cinder-ses -s
 ```
 
 
-### Modify configuration templates
+#### Modify configuration templates
 
-#### Cinder
+##### Cinder
 
 Edit `~/helion/my_cloud/config/cinder/cinder.conf.j2` and add a new section
 for the ceph backend, for example:
 
 ```ini
-[ses]
+[ses_ceph]
 volume_driver = cinder.volume.drivers.rbd.RBDDriver
-volume_backend_name = ses
+volume_backend_name = ses_ceph
 rbd_pool = volumes
 rbd_ceph_conf = /etc/ceph/ses.conf
 rbd_flatten_volume_from_snapshot = false
@@ -145,10 +156,10 @@ and that the new backend is listed in `enabled_backends` in the
 `DEFAULTS` section, for example:
 
 ```ini
-enabled_backends=ceph1,ses
+enabled_backends=ceph1,ses_ceph
 ```
 
-#### Nova
+##### Nova
 
 Edit `~/helion/my_cloud/config/nova/kvm-hypervisor.conf.j2` and make sure
 the `libvirt` section does not contain `rdb_user` or `rbd_secret_uid`.
@@ -162,9 +173,9 @@ regular cinder volumes, Ceph details from cinder will be used when attaching
 volumes.
 
 
-## Preparing a migration from non-Ceph backends
+### Preparing a migration from non-Ceph backends
 
-### Create keyrings
+#### Create keyrings
 
 On the SES cluster:
 
@@ -177,7 +188,7 @@ ceph auth get-or-create client.cinder-backup mon 'profile rbd' osd 'profile rbd 
 The keys generated here will be used in the next step.
 
 
-### Deploy Ceph client packages
+#### Deploy Ceph client packages
 
 Log into the HOS deployer node as the `stack` user and clone/copy this repo
 to the user's home directory.
@@ -221,9 +232,9 @@ sudo ceph --id cinder -s
 ```
 
 
-### Modify configuration templates
+#### Modify configuration templates
 
-#### Cinder
+##### Cinder
 
 Edit `~/helion/my_cloud/config/cinder/cinder.conf.j2` and add a new section
 for the ceph backend, for example:
@@ -252,7 +263,7 @@ enabled_backends=vsa-1,ses_ceph
 ```
 
 
-## Apply the changes to the services
+### Apply the changes to the services
 
 Commit the configuration changes and verify the input model is still
 consistent:
@@ -272,7 +283,7 @@ ansible-playbook cinder-reconfigure.yml
 ```
 
 
-## Create a volume-type for the SES backend
+### Create a volume-type for the SES backend
 
 ```sh
 . ~/service.osrc
@@ -284,7 +295,7 @@ Make sure `volume_backend_name` matches the `volume_backend_name` in the SES
 section added to `cinder.conf.j2`.
 
 
-## Migrate existing volumes
+### Migrate existing volumes
 
 Before migrating a volume, it must be detached from its instance and all of
 its snapshots must be removed.
@@ -303,7 +314,7 @@ The status of the migration can be checked with the `cinder show` command.
 The volume can be re-attached to the instance after the migration is complete.
 
 
-## Migrate cinder-backed instances
+### Migrate cinder-backed instances
 
 Currently cinder does not support detaching the boot volume from its instance.
 
@@ -322,7 +333,7 @@ update block_device_mapping set boot_index=0 where deleted=0 and volume_id='ca16
 ```
 
 
-## Using the migration planning script
+### Using the migration planning script
 
 The `migration_planner.py` script can be used to build a detailed list of
 steps to execute in order to migrate the existing volumes. The output can
@@ -335,7 +346,7 @@ to migrate to.
 
 It is meant to be run on a controller node in the openstack-client virtualenv.
 
-### Example
+#### Example
 
 This is the state of the environment we want to migrate:
 
@@ -454,6 +465,82 @@ Running the script again, will confirm the migration was successful:
 (openstackclient-20180403T122416Z) stack@hos5to8-cp1-c1-m1-mgmt:~$ 
 ```
 
+## Object storage
+
+### Create radosgw system users
+
+On both the HOS5 ceph and SES clusters, run:
+
+```sh
+radosgw-admin user create --system --uid=migration --display-name="HOS5-HOS8 migration"
+```
+
+It will print a JSON structure containing the details of the newly created
+user. Take note of the `access_key` and `secret_key` values from the `keys`
+field.
+
+### Enable access to radosgw admin API on HOS
+
+On one of the HOS5 radosgw nodes run:
+
+```sh
+iptables -I INPUT -m tcp -p tcp --dport 7480 -j ACCEPT
+```
+
+### Migrate data
+
+TODO: Describe how to create the virtualenv required for the script
+
+From the same HOS5 radosgw node:
+
+```sh
+./rgw-migrate.py ip_from:port_from:access_key_from:secret_key_from ip_to:port_to:access_key_to:secret_key_to
+```
+
+### Configure keystone authentication on SES
+
+Copy the rgw lines from the HOS5's ceph config file and paste them in the SES'
+ceph config file in each of the sections reserved for the radosgw daemon.
+This is an example of the fields:
+
+```ini
+rgw keystone url = https://hos5to8-cp1-vip-KEY-API-mgmt:5000
+rgw keystone accepted roles = admin, _member_
+rgw keystone admin user = radosgw
+rgw keystone admin password = I18xNEJD
+rgw keystone admin tenant = services
+rgw s3 auth use keystone = False
+```
+
+Make sure the SES nodes can resolve the keystone endpoint address, for example
+by adding a new entry in `/etc/hosts`.
+
+### Change catalog endpoints for radosgw
+
+TODO: Need SuSE to confirm if SES can expose a VIP for load balancing across
+radosgw nodes
+
+```sh
+. ~/keystone.osrc
+openstack endpoint list|grep -i ceph-object-store | awk '{print $2}' | xargs openstack endpoint delete
+for ep in admin internal public ; do openstack endpoint create --region region1 ceph-rgw $ep http://172.16.110.11:80/swift/v1 ; done
+```
+
+### Remove radosgw system users
+
+On both the HOS5 ceph and SES clusters, run:
+
+```sh
+radosgw-admin user rm --uid=migration
+```
+
+### Disable access to radosgw admin API on HOS
+
+On the HOS5 radosgw node we used for the migration run:
+
+```sh
+iptables -D INPUT -m tcp -p tcp --dport 7480 -j ACCEPT
+```
 
 ## Decommission the old storage nodes
 
@@ -464,6 +551,10 @@ not pointing to the old backend.
 When migrating from a HLM-deployed backend like VSA or Ceph, the storage
 nodes must be removed from the control plane before starting the HOS upgrade
 process.
+
+Also make sure to remove the `ceph-monitor` and `ceph-radosgw` service
+components from the control plane and disable and stop the monitor and gateway
+services if they are running on controller nodes.
 
 Once the input model has been updated, the final configuration can
 be deployed:

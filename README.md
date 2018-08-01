@@ -85,6 +85,30 @@ The keys generated here will be used in the next step.
 
 #### Deploy Ceph client packages
 
+If HOS is using RHEL or SLES compute nodes, make sure the Ceph packages in
+the HOS repos are up to date: follow the HOS5 documentation in the section
+"*Setting up a yum repo on Lifecycle Manager Node for Hosting the Ceph Client
+Packages for RHEL 7.2*" on how to add packages to the HOS repos using the
+third party integration framework. For SLES, the packages required are:
+
+- ceph-12.2.5+git.1530082629.8cbf63d997-2.16.1.x86_64.rpm
+- ceph-base-12.2.5+git.1530082629.8cbf63d997-2.16.1.x86_64.rpm
+- ceph-common-12.2.5+git.1530082629.8cbf63d997-2.16.1.x86_64.rpm
+- ceph-mds-12.2.5+git.1530082629.8cbf63d997-2.16.1.x86_64.rpm
+- ceph-mgr-12.2.5+git.1530082629.8cbf63d997-2.16.1.x86_64.rpm
+- ceph-mon-12.2.5+git.1530082629.8cbf63d997-2.16.1.x86_64.rpm
+- ceph-osd-12.2.5+git.1530082629.8cbf63d997-2.16.1.x86_64.rpm
+- ceph-radosgw-12.2.5+git.1530082629.8cbf63d997-2.16.1.x86_64.rpm
+- libcephfs2-12.2.5+git.1530082629.8cbf63d997-2.16.1.x86_64.rpm
+- librados2-12.2.5+git.1530082629.8cbf63d997-2.16.1.x86_64.rpm
+- libradosstriper1-12.2.5+git.1530082629.8cbf63d997-2.16.1.x86_64.rpm
+- librbd1-12.2.5+git.1530082629.8cbf63d997-2.16.1.x86_64.rpm
+- librgw2-12.2.5+git.1530082629.8cbf63d997-2.16.1.x86_64.rpm
+- python-cephfs-12.2.5+git.1530082629.8cbf63d997-2.16.1.x86_64.rpm
+- python-rados-12.2.5+git.1530082629.8cbf63d997-2.16.1.x86_64.rpm
+- python-rbd-12.2.5+git.1530082629.8cbf63d997-2.16.1.x86_64.rpm
+- python-rgw-12.2.5+git.1530082629.8cbf63d997-2.16.1.x86_64.rpm
+
 Log into the HOS deployer node as the `stack` user and clone/copy this repo
 to the user's home directory.
 

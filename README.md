@@ -481,7 +481,7 @@ field.
 
 ### Enable access to radosgw admin API on HOS
 
-On one of the HOS5 radosgw nodes run:
+On one of the HOS5 radosgw node run:
 
 ```sh
 iptables -I INPUT -m tcp -p tcp --dport 7480 -j ACCEPT
@@ -489,13 +489,31 @@ iptables -I INPUT -m tcp -p tcp --dport 7480 -j ACCEPT
 
 ### Migrate data
 
-TODO: Describe how to create the virtualenv required for the script
+The object migration script depends on a python module which is not included
+in any of the HOS5 virtualenvs. To create a suitable virtualenv:
 
-From the same HOS5 radosgw node:
+```sh
+virtualenv ~/radosgw-venv
+. ~/radosgw-venv/bin/activate
+pip install radosgw-admin python-swiftclient boto
+```
+
+From the same HOS5 radosgw node run the migration script:
 
 ```sh
 ./rgw-migrate.py ip_from:port_from:access_key_from:secret_key_from ip_to:port_to:access_key_to:secret_key_to
 ```
+
+Where:
+ - `ip_from` is the IP of the management interface of the HOS5 radosgw node
+ - `port_from` is the TCP port where the source radosgw is listening (7480)
+ - `access_key_from` and `secret_key_from` are the credentials for the radosgw
+   admin user on the HOS5 Ceph cluster
+ - `ip_to` is the IP of the SES radosgw node
+ - `port_to` is the TCP port where the destination radosgw is listening (80 by
+   default)
+ - `access_key_to` and `secret_key_to` are the credentials for the radosgw
+   admin user on the SES cluster
 
 ### Configure keystone authentication on SES
 
@@ -515,16 +533,25 @@ rgw s3 auth use keystone = False
 Make sure the SES nodes can resolve the keystone endpoint address, for example
 by adding a new entry in `/etc/hosts`.
 
-### Change catalog endpoints for radosgw
+TLS certificates from HOS5 must also be configured on the SES cluster for
+keystone authentication to work: copy `/etc/ssl/certs/helion*.pem` from one of
+the HOS5 controllers to `/etc/pki/trust/anchors/` on the SES nodes and, as
+root, run:
 
-TODO: Need SuSE to confirm if SES can expose a VIP for load balancing across
-radosgw nodes
+```sh
+update-ca-certificates
+```
+
+### Change catalog endpoints for radosgw
 
 ```sh
 . ~/keystone.osrc
 openstack endpoint list|grep -i ceph-object-store | awk '{print $2}' | xargs openstack endpoint delete
 for ep in admin internal public ; do openstack endpoint create --region region1 ceph-rgw $ep http://172.16.110.11:80/swift/v1 ; done
 ```
+
+Where 172.16.110.11:80 must be replaced with the IP and port where the object
+gateway service from the SES cluster is exposed.
 
 ### Remove radosgw system users
 

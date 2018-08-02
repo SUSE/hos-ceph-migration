@@ -318,7 +318,7 @@ ansible-playbook cinder-reconfigure.yml
 ```sh
 . ~/service.osrc
 cinder type-create ses
-cinder type-key ceph set volume_backend_name=ses_ceph
+cinder type-key ses set volume_backend_name=ses_ceph
 ```
 
 Make sure `volume_backend_name` matches the `volume_backend_name` in the SES

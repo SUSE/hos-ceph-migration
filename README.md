@@ -2,8 +2,9 @@
 
 - [Migrating HOS 5 storage to SES](#migrating-hos-5-storage-to-ses)
   - [Assumptions](#assumptions)
-  - [Preparations on the SES cluster](#preparations-on-the-ses-cluster)
-    - [Enable ceph backward compatibility to hammer](#enable-ceph-backward-compatibility-to-hammer)
+  - [Preparations](#preparations)
+    - [Enable SES backward compatibility to hammer](#enable-ses-backward-compatibility-to-hammer)
+    - [Upgrade Ceph client packages for RHEL and SLES](#upgrade-ceph-client-packages-for-rhel-and-sles)
     - [Create required pools](#create-required-pools)
   - [Block storage](#block-storage)
     - [Preparing a migration from an HLM-deployed Ceph cluster](#preparing-a-migration-from-an-hlm-deployed-ceph-cluster)
@@ -23,6 +24,7 @@
     - [Migrate cinder-backed instances](#migrate-cinder-backed-instances)
     - [Using the migration planning script](#using-the-migration-planning-script)
       - [Example](#example)
+  - [Image storage](#image-storage)
   - [Object storage](#object-storage)
     - [Create radosgw system users](#create-radosgw-system-users)
     - [Enable access to radosgw admin API on HOS](#enable-access-to-radosgw-admin-api-on-hos)
@@ -40,9 +42,9 @@
   data
 
 
-## Preparations on the SES cluster
+## Preparations
 
-### Enable ceph backward compatibility to hammer
+### Enable SES backward compatibility to hammer
 
 On the SES cluster:
 
@@ -50,6 +52,34 @@ On the SES cluster:
 ceph osd crush tunables hammer
 ceph osd set-require-min-compat-client hammer
 ```
+
+### Upgrade Ceph client packages for RHEL and SLES
+
+If HOS is using RHEL or SLES compute nodes, make sure the Ceph packages in
+the HOS repos are up to date: follow the HOS5 documentation in the section
+"*Setting up a yum repo on Lifecycle Manager Node for Hosting the Ceph Client
+Packages for RHEL 7.2*" on how to add packages to the HOS repos using the
+third party integration framework. For SLES, the packages required are:
+
+- ceph-12.2.5+git.1530082629.8cbf63d997-2.16.1.x86_64.rpm
+- ceph-base-12.2.5+git.1530082629.8cbf63d997-2.16.1.x86_64.rpm
+- ceph-common-12.2.5+git.1530082629.8cbf63d997-2.16.1.x86_64.rpm
+- ceph-mds-12.2.5+git.1530082629.8cbf63d997-2.16.1.x86_64.rpm
+- ceph-mgr-12.2.5+git.1530082629.8cbf63d997-2.16.1.x86_64.rpm
+- ceph-mon-12.2.5+git.1530082629.8cbf63d997-2.16.1.x86_64.rpm
+- ceph-osd-12.2.5+git.1530082629.8cbf63d997-2.16.1.x86_64.rpm
+- ceph-radosgw-12.2.5+git.1530082629.8cbf63d997-2.16.1.x86_64.rpm
+- libcephfs2-12.2.5+git.1530082629.8cbf63d997-2.16.1.x86_64.rpm
+- librados2-12.2.5+git.1530082629.8cbf63d997-2.16.1.x86_64.rpm
+- libradosstriper1-12.2.5+git.1530082629.8cbf63d997-2.16.1.x86_64.rpm
+- librbd1-12.2.5+git.1530082629.8cbf63d997-2.16.1.x86_64.rpm
+- librgw2-12.2.5+git.1530082629.8cbf63d997-2.16.1.x86_64.rpm
+- python-cephfs-12.2.5+git.1530082629.8cbf63d997-2.16.1.x86_64.rpm
+- python-rados-12.2.5+git.1530082629.8cbf63d997-2.16.1.x86_64.rpm
+- python-rbd-12.2.5+git.1530082629.8cbf63d997-2.16.1.x86_64.rpm
+- python-rgw-12.2.5+git.1530082629.8cbf63d997-2.16.1.x86_64.rpm
+
+This step is not required when migrating object storage only.
 
 
 ### Create required pools
@@ -84,30 +114,6 @@ The keys generated here will be used in the next step.
 
 
 #### Deploy Ceph client packages
-
-If HOS is using RHEL or SLES compute nodes, make sure the Ceph packages in
-the HOS repos are up to date: follow the HOS5 documentation in the section
-"*Setting up a yum repo on Lifecycle Manager Node for Hosting the Ceph Client
-Packages for RHEL 7.2*" on how to add packages to the HOS repos using the
-third party integration framework. For SLES, the packages required are:
-
-- ceph-12.2.5+git.1530082629.8cbf63d997-2.16.1.x86_64.rpm
-- ceph-base-12.2.5+git.1530082629.8cbf63d997-2.16.1.x86_64.rpm
-- ceph-common-12.2.5+git.1530082629.8cbf63d997-2.16.1.x86_64.rpm
-- ceph-mds-12.2.5+git.1530082629.8cbf63d997-2.16.1.x86_64.rpm
-- ceph-mgr-12.2.5+git.1530082629.8cbf63d997-2.16.1.x86_64.rpm
-- ceph-mon-12.2.5+git.1530082629.8cbf63d997-2.16.1.x86_64.rpm
-- ceph-osd-12.2.5+git.1530082629.8cbf63d997-2.16.1.x86_64.rpm
-- ceph-radosgw-12.2.5+git.1530082629.8cbf63d997-2.16.1.x86_64.rpm
-- libcephfs2-12.2.5+git.1530082629.8cbf63d997-2.16.1.x86_64.rpm
-- librados2-12.2.5+git.1530082629.8cbf63d997-2.16.1.x86_64.rpm
-- libradosstriper1-12.2.5+git.1530082629.8cbf63d997-2.16.1.x86_64.rpm
-- librbd1-12.2.5+git.1530082629.8cbf63d997-2.16.1.x86_64.rpm
-- librgw2-12.2.5+git.1530082629.8cbf63d997-2.16.1.x86_64.rpm
-- python-cephfs-12.2.5+git.1530082629.8cbf63d997-2.16.1.x86_64.rpm
-- python-rados-12.2.5+git.1530082629.8cbf63d997-2.16.1.x86_64.rpm
-- python-rbd-12.2.5+git.1530082629.8cbf63d997-2.16.1.x86_64.rpm
-- python-rgw-12.2.5+git.1530082629.8cbf63d997-2.16.1.x86_64.rpm
 
 Log into the HOS deployer node as the `stack` user and clone/copy this repo
 to the user's home directory.
@@ -488,6 +494,20 @@ Running the script again, will confirm the migration was successful:
 # Migration completed: 0 volumes, 0GB data, 0 instances
 (openstackclient-20180403T122416Z) stack@hos5to8-cp1-c1-m1-mgmt:~$ 
 ```
+
+## Image storage
+
+Glance images stored on Ceph can be migrated to SES by exporting the contents
+of the `images` pool and reimporting in the same pool in the SES cluster.
+A simple script is provided. It takes source and destination cluster, user and
+pool names and moves the rbd images across, for example:
+
+```
+sudo ./rbd-migrate.sh ceph glance images ses glance-ses images
+```
+
+The script require root privileges to access keyring files and to manipulate
+the glance mysql database.
 
 ## Object storage
 

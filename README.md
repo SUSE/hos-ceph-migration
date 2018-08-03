@@ -192,12 +192,12 @@ enabled_backends=ceph1,ses_ceph
 ##### Nova
 
 Edit `~/helion/my_cloud/config/nova/kvm-hypervisor.conf.j2` and make sure
-the `libvirt` section does not contain `rdb_user` or `rbd_secret_uid`.
+the `libvirt` section does not contain `rbd_user` or `rbd_secret_uid`.
 
 This is needed because of
 [nova bug #1635008](https://bugs.launchpad.net/nova/+bug/1635008).
 
-`rdb_user` and `rbd_secret_uid` are strictly required only when using Ceph
+`rbd_user` and `rbd_secret_uid` are strictly required only when using Ceph
 for ephemeral disk, which is not a supported configuration in HOS5: for
 regular cinder volumes, Ceph details from cinder will be used when attaching
 volumes.
@@ -525,7 +525,7 @@ field.
 
 ### Enable access to radosgw admin API on HOS
 
-On one of the HOS5 radosgw node run:
+On one of the HOS5 radosgw nodes run:
 
 ```sh
 iptables -I INPUT -m tcp -p tcp --dport 7480 -j ACCEPT

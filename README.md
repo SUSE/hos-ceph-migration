@@ -25,6 +25,7 @@
     - [Using the migration planning script](#using-the-migration-planning-script)
       - [Example](#example)
   - [Image storage](#image-storage)
+  - [Backup storage](#backup-storage)
   - [Object storage](#object-storage)
     - [Create radosgw system users](#create-radosgw-system-users)
     - [Enable access to radosgw admin API on HOS](#enable-access-to-radosgw-admin-api-on-hos)
@@ -155,7 +156,7 @@ From a controller or compute node, check that the client can talk to the ceph
 cluster:
 
 ```sh
-sudo ceph -c /etc/ceph/ses.conf --cluster ses --id cinder-ses -s
+sudo ceph -c /etc/ceph/ses.conf --id cinder-ses -s
 ```
 
 
@@ -499,15 +500,28 @@ Running the script again, will confirm the migration was successful:
 
 Glance images stored on Ceph can be migrated to SES by exporting the contents
 of the `images` pool and reimporting in the same pool in the SES cluster.
-A simple script is provided. It takes source and destination cluster, user and
-pool names and moves the rbd images across, for example:
+A simple script is provided. It takes source and destination cluster and moves
+the rbd images across, for example:
 
 ```
-sudo ./rbd-migrate.sh ceph glance images ses glance-ses images
+sudo ./migrate-images.sh ceph ses
 ```
 
-The script require root privileges to access keyring files and to manipulate
+The script requires root privileges to access keyring files and to manipulate
 the glance mysql database.
+
+## Backup storage
+
+Cinder volume backups stored on Ceph can be migrated to SES by exporting the
+contents of the `backups` pool and reimporting in the same pool in the SES
+cluster. A simple script is provided. It takes source and destination cluster
+and moves the rbd images across, for example:
+
+```
+sudo ./migrate-backups.sh ceph ses
+```
+
+The script requires root privileges to access keyring files.
 
 ## Object storage
 

@@ -539,7 +539,7 @@ in any of the HOS5 virtualenvs. To create a suitable virtualenv:
 ```sh
 virtualenv ~/radosgw-venv
 . ~/radosgw-venv/bin/activate
-pip install radosgw-admin python-swiftclient boto
+pip install radosgw-admin python-swiftclient boto click
 ```
 
 From the same HOS5 radosgw node run the migration script:

@@ -10,8 +10,8 @@ TO_CLUSTER=$4
 TO_USER=$5
 TO_POOL=$6
 
-FROM_RBD="${RBD_CMD} -c /etc/ceph/${FROM_CLUSTER}.conf --id ${FROM_USER} --keyring /etc/ceph/${FROM_CLUSTER}.client.${FROM_USER}.keyring -p ${FROM_POOL}"
-TO_RBD="${RBD_CMD} -c /etc/ceph/${TO_CLUSTER}.conf --id ${TO_USER} --keyring /etc/ceph/${TO_CLUSTER}.client.${TO_USER}.keyring -p ${TO_POOL}"
+FROM_RBD="${RBD_CMD} -c /etc/ceph/${FROM_CLUSTER}.conf --id ${FROM_USER} -p ${FROM_POOL}"
+TO_RBD="${RBD_CMD} -c /etc/ceph/${TO_CLUSTER}.conf --id ${TO_USER} -p ${TO_POOL}"
 
 for volume in $($FROM_RBD ls)
 do

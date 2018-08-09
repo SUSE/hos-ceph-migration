@@ -70,7 +70,7 @@
     - name: Copy cinder keyring file
       template:
         src: ceph.keyring.j2
-        dest: /etc/ceph/{{ cluster_name }}.{{ item }}{% if cluster_name != "ceph" %}-{{ cluster_name }}{% endif %}.keyring
+        dest: /etc/ceph/ceph.{{ item }}{% if cluster_name != "ceph" %}-{{ cluster_name }}{% endif %}.keyring
         owner: cinder
         group: cinder
         mode: 0640
@@ -87,7 +87,7 @@
     - name: Copy cinder-backup keyring file
       template:
         src: ceph.keyring.j2
-        dest: /etc/ceph/{{ cluster_name }}.{{ item }}{% if cluster_name != "ceph" %}-{{ cluster_name }}{% endif %}.keyring
+        dest: /etc/ceph/ceph.{{ item }}{% if cluster_name != "ceph" %}-{{ cluster_name }}{% endif %}.keyring
         owner: cinder
         group: cinder
         mode: 0640
@@ -103,7 +103,7 @@
     - name: Copy cinder keyring file to compute nodes
       template:
         src: ceph.keyring.j2
-        dest: /etc/ceph/{{ cluster_name }}.{{ item }}{% if cluster_name != "ceph" %}-{{ cluster_name }}{% endif %}.keyring
+        dest: /etc/ceph/ceph.{{ item }}{% if cluster_name != "ceph" %}-{{ cluster_name }}{% endif %}.keyring
         owner: nova
         group: nova
         mode: 0640
@@ -119,7 +119,7 @@
     - name: Copy glance keyring file
       template:
         src: ceph.keyring.j2
-        dest: /etc/ceph/{{ cluster_name }}.{{ item }}{% if cluster_name != "ceph" %}-{{ cluster_name }}{% endif %}.keyring
+        dest: /etc/ceph/ceph.{{ item }}{% if cluster_name != "ceph" %}-{{ cluster_name }}{% endif %}.keyring
         owner: glance
         group: glance
         mode: 0640

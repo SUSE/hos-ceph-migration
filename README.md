@@ -56,6 +56,8 @@ ceph osd set-require-min-compat-client hammer
 
 ### Upgrade Ceph client packages for RHEL and SLES
 
+This step is not required when migrating object storage only.
+
 If HOS is using RHEL or SLES compute nodes, make sure the Ceph packages in
 the HOS repos are up to date: follow the HOS5 documentation in the section
 "*Setting up a yum repo on Lifecycle Manager Node for Hosting the Ceph Client
@@ -80,8 +82,9 @@ third party integration framework. For SLES, the packages required are:
 - python-rbd-12.2.5+git.1530082629.8cbf63d997-2.16.1.x86_64.rpm
 - python-rgw-12.2.5+git.1530082629.8cbf63d997-2.16.1.x86_64.rpm
 
-This step is not required when migrating object storage only.
-
+Make sure to run the osconfig-run.yml playbook against the affected
+compute nodes (using the --limit option) after importing the updated
+packages.
 
 ### Create required pools
 

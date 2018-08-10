@@ -56,7 +56,6 @@
       zypper: name=qemu-block-rbd state=present
       when: ansible_os_family == 'Suse'
 
-
 ### Copy required keyrings
 
 - hosts:
@@ -109,6 +108,15 @@
         mode: 0640
       with_items:
         - client.cinder
+
+    - name: Create symlink to keyring for SuSE nodes
+      file:
+        src: /etc/ceph/ceph.{{ item }}{% if cluster_name != "ceph" %}-{{ cluster_name }}{% endif %}.keyring
+        dest: /etc/ceph/ses.{{ item }}{% if cluster_name != "ceph" %}-{{ cluster_name }}{% endif %}.keyring
+        state: link
+      with_items:
+        - client.cinder
+      when: ansible_os_family == 'Suse'
 
 - hosts: GLA-API
   sudo: yes
